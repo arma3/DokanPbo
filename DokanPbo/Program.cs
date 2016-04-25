@@ -1,15 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using DokanNet;
+using System;
 
 namespace DokanPbo
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
+            try
+            {
+                PboFS pboFS = new PboFS("D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Addons\\data_f.pbo");
+                pboFS.Mount("r:\\", DokanOptions.DebugMode | DokanOptions.StderrOutput);
+                Console.WriteLine("Success");
+            }
+            catch (DokanException ex)
+            {
+                Console.WriteLine("Error: " + ex.Message);
+            }
         }
     }
 }

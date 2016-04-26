@@ -28,6 +28,24 @@ namespace DokanPbo
             }
         }
 
+        public Stream ReadStream(string filePath)
+        {
+            PboArchive archive = null;
+            filePath = filePath.ToLower();
+
+            if (FilePathToArchive.TryGetValue(filePath, out archive))
+            {
+                FileEntry file = null;
+
+                if (FilePathToFileEntry.TryGetValue(filePath, out file))
+                {
+                    return archive.Extract(file);
+                }
+            }
+
+            return null;
+        }
+
         private void ReadPboFiles(string[] filePaths)
         {
             foreach(var filePath in filePaths)

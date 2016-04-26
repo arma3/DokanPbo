@@ -110,6 +110,16 @@ namespace DokanPbo
 
         public NtStatus ReadFile(string filename, byte[] buffer, out int readBytes, long offset, DokanFileInfo info)
         {
+            var stream = ArchiveManager.ReadStream(filename);
+            FileEntry file = null;
+
+            if (stream != null && ArchiveManager.FilePathToFileEntry.TryGetValue(filename.ToLower(), out file))
+            {
+                stream.Position += offset;
+                readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long) file.DataSize - offset)));
+                return DokanResult.Success;
+            }
+
             readBytes = 0;
             return DokanResult.Error;
         }

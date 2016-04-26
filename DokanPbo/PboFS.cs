@@ -84,9 +84,10 @@ namespace DokanPbo
             }
 
             FileEntry file = null;
-            ArchiveManager.FilePathToFileEntry.TryGetValue(filename, out file);
-            if (file == null)
+            if (!ArchiveManager.FilePathToFileEntry.TryGetValue(filename.ToLower(), out file))
+            {
                 return DokanResult.Error;
+            }
 
             fileInfo.Length = (long) file.DataSize;
             fileInfo.Attributes = System.IO.FileAttributes.Directory;

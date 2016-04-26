@@ -9,7 +9,10 @@ namespace DokanPbo
         {
             try
             {
-                PboFS pboFS = new PboFS("D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Addons\\data_f.pbo");
+                ArchiveManager archiveManager = new ArchiveManager(new String[] {
+                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Addons\\"
+                });
+                PboFS pboFS = new PboFS(archiveManager);
                 pboFS.Mount("r:\\", DokanOptions.DebugMode | DokanOptions.StderrOutput);
                 Console.WriteLine("Success");
             }

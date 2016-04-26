@@ -9,11 +9,11 @@ namespace DokanPbo
 {
     internal class PboFS : IDokanOperations
     {
-        private PboArchive Archive;
+        private ArchiveManager ArchiveManager;
 
-        public PboFS(string path)
+        public PboFS(ArchiveManager archiveManager)
         {
-            Archive = new PboArchive(path);
+            ArchiveManager = archiveManager;
         }
 
         public void Cleanup(string filename, DokanFileInfo info)
@@ -49,11 +49,13 @@ namespace DokanPbo
             files = new List<FileInformation>();
             if (filename == "\\")
             {
-                foreach (FileEntry file in Archive.Files)
+                Dictionary<string, FileEntry> fileEntries = ArchiveManager.FilePathToFileEntry;
+
+                foreach (string filePath in fileEntries.Keys)
                 {
                     FileInformation fileInfo = new FileInformation();
-                    fileInfo.FileName = file.FileName;
-                    fileInfo.Length = (long) file.DataSize;
+                    fileInfo.FileName = filePath;
+                    fileInfo.Length = (long)fileEntries[filePath].DataSize;
                     fileInfo.Attributes = System.IO.FileAttributes.Normal;
                     fileInfo.LastAccessTime = DateTime.Now;
                     fileInfo.LastWriteTime = DateTime.Now;
@@ -82,6 +84,7 @@ namespace DokanPbo
             }
 
             FileEntry file = null;
+            ArchiveManager.FilePathToFileEntry.TryGetValue(filename, out file);
             if (file == null)
                 return DokanResult.Error;
 
@@ -148,13 +151,8 @@ namespace DokanPbo
         public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalBytes, out long totalFreeBytes, DokanFileInfo info)
         {
             freeBytesAvailable = 0;
-            totalBytes = 0;
+            totalBytes = ArchiveManager.TotalBytes;
             totalFreeBytes = 0;
-
-            foreach (FileEntry file in Archive.Files)
-            {
-                totalBytes += (long) file.DataSize;
-            }
 
             return DokanResult.Success;
         }

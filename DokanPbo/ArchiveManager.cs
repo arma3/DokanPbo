@@ -54,7 +54,7 @@ namespace DokanPbo
 
                 foreach (var file in archive.Files)
                 {
-                    var wholeFilePath = ("\\" + archive.ProductEntry.ProductName + "\\" + file.FileName).ToLower();
+                    var wholeFilePath = ("\\" + archive.ProductEntry.Prefix + "\\" + file.FileName).ToLower();
                     FilePathToArchive[wholeFilePath] = archive;
                     FilePathToFileEntry[wholeFilePath] = file;
                     TotalBytes += (long) file.DataSize;

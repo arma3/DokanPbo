@@ -9,11 +9,13 @@ namespace DokanPbo
 {
     internal class PboFS : IDokanOperations
     {
-        private ArchiveManager ArchiveManager;
+        private ArchiveManager archiveManager;
+        private PboFSTree fileTree;
 
-        public PboFS(ArchiveManager archiveManager)
+        public PboFS(PboFSTree fileTree, ArchiveManager archiveManager)
         {
-            ArchiveManager = archiveManager;
+            this.archiveManager = archiveManager;
+            this.fileTree = fileTree;
         }
 
         public void Cleanup(string filename, DokanFileInfo info)
@@ -46,56 +48,29 @@ namespace DokanPbo
 
         public NtStatus FindFiles(string filename, out IList<FileInformation> files, DokanFileInfo info)
         {
-            files = new List<FileInformation>();
-            if (filename == "\\")
+            try
             {
-                Dictionary<string, FileEntry> fileEntries = ArchiveManager.FilePathToFileEntry;
-
-                foreach (string filePath in fileEntries.Keys)
-                {
-                    FileInformation fileInfo = new FileInformation();
-                    fileInfo.FileName = filePath;
-                    fileInfo.Length = (long)fileEntries[filePath].DataSize;
-                    fileInfo.Attributes = System.IO.FileAttributes.Normal;
-                    fileInfo.LastAccessTime = DateTime.Now;
-                    fileInfo.LastWriteTime = DateTime.Now;
-                    fileInfo.CreationTime = DateTime.Now;
-                    files.Add(fileInfo);
-                }
+                files = this.fileTree.FilesForPath(filename);
                 return DokanResult.Success;
             }
-
-            return DokanResult.Error;
+            catch (Exception)
+            {
+                files = null;
+                return DokanResult.Error;
+            }
         }
 
         public NtStatus GetFileInformation(string filename, out FileInformation fileInfo, DokanFileInfo info)
         {
-            fileInfo = new FileInformation();
-            fileInfo.FileName = filename;
-
-            if (filename == "\\")
+            try
             {
-                fileInfo.Attributes = System.IO.FileAttributes.Directory;
-                fileInfo.LastAccessTime = DateTime.Now;
-                fileInfo.LastWriteTime = DateTime.Now;
-                fileInfo.CreationTime = DateTime.Now;
-
+                fileInfo = this.fileTree.FileInfoForPath(filename);
                 return DokanResult.Success;
-            }
-
-            FileEntry file = null;
-            if (!ArchiveManager.FilePathToFileEntry.TryGetValue(filename.ToLower(), out file))
+            } catch (Exception)
             {
+                fileInfo = new FileInformation();
                 return DokanResult.Error;
             }
-
-            fileInfo.Length = (long) file.DataSize;
-            fileInfo.Attributes = System.IO.FileAttributes.Directory;
-            fileInfo.LastAccessTime = DateTime.Now;
-            fileInfo.LastWriteTime = DateTime.Now;
-            fileInfo.CreationTime = DateTime.Now;
-
-            return DokanResult.Success;
         }
 
         public NtStatus LockFile(string filename, long offset, long length, DokanFileInfo info)
@@ -110,10 +85,10 @@ namespace DokanPbo
 
         public NtStatus ReadFile(string filename, byte[] buffer, out int readBytes, long offset, DokanFileInfo info)
         {
-            var stream = ArchiveManager.ReadStream(filename);
+            var stream = this.archiveManager.ReadStream(filename);
             FileEntry file = null;
 
-            if (stream != null && ArchiveManager.FilePathToFileEntry.TryGetValue(filename.ToLower(), out file))
+            if (stream != null && this.archiveManager.FilePathToFileEntry.TryGetValue(filename.ToLower(), out file))
             {
                 stream.Position += offset;
                 readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long) file.DataSize - offset)));
@@ -162,7 +137,7 @@ namespace DokanPbo
         public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalBytes, out long totalFreeBytes, DokanFileInfo info)
         {
             freeBytesAvailable = 0;
-            totalBytes = ArchiveManager.TotalBytes;
+            totalBytes = this.archiveManager.TotalBytes;
             totalFreeBytes = 0;
 
             return DokanResult.Success;

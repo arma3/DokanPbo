@@ -49,6 +49,8 @@
   <ItemGroup>
     <Compile Include="ArchiveManager.cs" />
     <Compile Include="PboFS.cs" />
+    <Compile Include="PboFSNode.cs" />
+    <Compile Include="PboFSTree.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

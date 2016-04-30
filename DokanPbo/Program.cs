@@ -17,9 +17,14 @@ namespace DokanPbo
             try
             {
                 ArchiveManager archiveManager = new ArchiveManager(new String[] {
-                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Addons\\"
+                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Addons\\",
+                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Curator\\Addons\\",
+                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Heli\\Addons\\",
+                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Kart\\Addons\\",
+                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Mark\\Addons\\",
                 });
-                PboFS pboFS = new PboFS(archiveManager);
+                PboFSTree fileTree = new PboFSTree(archiveManager);
+                PboFS pboFS = new PboFS(fileTree, archiveManager);
                 pboFS.Mount("r:\\", Program.MOUNT_OPTIONS);
                 Console.WriteLine("Success");
             }

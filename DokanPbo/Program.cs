@@ -1,8 +1,33 @@
-﻿using DokanNet;
+﻿using CommandLine;
+using CommandLine.Text;
+using DokanNet;
 using System;
+using System.Collections.Generic;
 
 namespace DokanPbo
 {
+    class Options
+    {
+        [OptionArray('f', "folders", Required = true,
+          HelpText = "Directories with PBO files to mount.")]
+        public string[] PboDirectories { get; set; }
+
+        [Option('o', "output", Required = true,
+          HelpText = "Drive or directory where to mount.")]
+        public string MountDirectory { get; set; }
+
+        [Option("prefix",
+          HelpText = "Prefix used to filter PBO paths.")]
+        public string Prefix { get; set; }
+
+        [HelpOption]
+        public string GetUsage()
+        {
+            return HelpText.AutoBuild(this,
+              (HelpText current) => HelpText.DefaultParsingErrorsHandler(this, current));
+        }
+    }
+
     internal class Program
     {
 
@@ -14,23 +39,22 @@ namespace DokanPbo
 
         private static void Main(string[] args)
         {
-            try
+            var options = new Options();
+            if (CommandLine.Parser.Default.ParseArguments(args, options))
             {
-                ArchiveManager archiveManager = new ArchiveManager(new String[] {
-                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Addons\\",
-                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Curator\\Addons\\",
-                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Heli\\Addons\\",
-                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Kart\\Addons\\",
-                    "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Mark\\Addons\\",
-                });
-                PboFSTree fileTree = new PboFSTree(archiveManager);
-                PboFS pboFS = new PboFS(fileTree, archiveManager, "\\a3");
-                pboFS.Mount("r:\\", Program.MOUNT_OPTIONS);
-                Console.WriteLine("Success");
-            }
-            catch (DokanException ex)
-            {
-                Console.WriteLine("Error: " + ex.Message);
+
+                try
+                {
+                    ArchiveManager archiveManager = new ArchiveManager(options.PboDirectories);
+                    PboFSTree fileTree = new PboFSTree(archiveManager);
+                    PboFS pboFS = new PboFS(fileTree, archiveManager, options.Prefix);
+                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS);
+                    Console.WriteLine("Success");
+                }
+                catch (DokanException ex)
+                {
+                    Console.WriteLine("Error: " + ex.Message);
+                }
             }
         }
     }

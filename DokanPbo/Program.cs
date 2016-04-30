@@ -24,7 +24,7 @@ namespace DokanPbo
                     "D:\\SteamLibrary\\steamapps\\common\\Arma 3\\Mark\\Addons\\",
                 });
                 PboFSTree fileTree = new PboFSTree(archiveManager);
-                PboFS pboFS = new PboFS(fileTree, archiveManager);
+                PboFS pboFS = new PboFS(fileTree, archiveManager, "\\a3");
                 pboFS.Mount("r:\\", Program.MOUNT_OPTIONS);
                 Console.WriteLine("Success");
             }

@@ -11,11 +11,18 @@ namespace DokanPbo
     {
         private ArchiveManager archiveManager;
         private PboFSTree fileTree;
+        private string prefix;
 
-        public PboFS(PboFSTree fileTree, ArchiveManager archiveManager)
+        public PboFS(PboFSTree fileTree, ArchiveManager archiveManager) : this(fileTree, archiveManager, "")
+        {
+            
+        }
+
+        public PboFS(PboFSTree fileTree, ArchiveManager archiveManager, string prefix)
         {
             this.archiveManager = archiveManager;
             this.fileTree = fileTree;
+            this.prefix = prefix;
         }
 
         public void Cleanup(string filename, DokanFileInfo info)
@@ -50,7 +57,7 @@ namespace DokanPbo
         {
             try
             {
-                files = this.fileTree.FilesForPath(filename);
+                files = this.fileTree.FilesForPath(PrefixedFilename(filename));
                 return DokanResult.Success;
             }
             catch (Exception)
@@ -64,7 +71,7 @@ namespace DokanPbo
         {
             try
             {
-                fileInfo = this.fileTree.FileInfoForPath(filename);
+                fileInfo = this.fileTree.FileInfoForPath(PrefixedFilename(filename));
                 return DokanResult.Success;
             } catch (Exception)
             {
@@ -85,10 +92,10 @@ namespace DokanPbo
 
         public NtStatus ReadFile(string filename, byte[] buffer, out int readBytes, long offset, DokanFileInfo info)
         {
-            var stream = this.archiveManager.ReadStream(filename);
+            var stream = this.archiveManager.ReadStream(PrefixedFilename(filename));
             FileEntry file = null;
 
-            if (stream != null && this.archiveManager.FilePathToFileEntry.TryGetValue(filename.ToLower(), out file))
+            if (stream != null && this.archiveManager.FilePathToFileEntry.TryGetValue(PrefixedFilename(filename).ToLower(), out file))
             {
                 stream.Position += offset;
                 readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long) file.DataSize - offset)));
@@ -185,6 +192,21 @@ namespace DokanPbo
         {
             files = new FileInformation[0];
             return DokanResult.NotImplemented;
+        }
+
+        private string PrefixedFilename(string filename)
+        {
+            if (prefix == null || prefix.Length == 0)
+            {
+                return filename;
+            }
+
+            if (filename == "\\")
+            {
+                return this.prefix;
+            }
+
+            return this.prefix + filename;
         }
     }
 }

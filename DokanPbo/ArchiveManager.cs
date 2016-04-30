@@ -31,7 +31,6 @@ namespace DokanPbo
         public Stream ReadStream(string filePath)
         {
             PboArchive archive = null;
-            filePath = filePath.ToLower();
 
             if (FilePathToArchive.TryGetValue(filePath, out archive))
             {

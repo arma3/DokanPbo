@@ -95,7 +95,7 @@ namespace DokanPbo
             var stream = this.archiveManager.ReadStream(PrefixedFilename(filename));
             FileEntry file = null;
 
-            if (stream != null && this.archiveManager.FilePathToFileEntry.TryGetValue(PrefixedFilename(filename).ToLower(), out file))
+            if (stream != null && this.archiveManager.FilePathToFileEntry.TryGetValue(PrefixedFilename(filename), out file))
             {
                 stream.Position += offset;
                 readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long) file.DataSize - offset)));
@@ -198,15 +198,15 @@ namespace DokanPbo
         {
             if (prefix == null || prefix.Length == 0)
             {
-                return filename;
+                return filename.ToLower();
             }
 
             if (filename == "\\")
             {
-                return this.prefix;
+                return this.prefix.ToLower();
             }
 
-            return this.prefix + filename;
+            return (this.prefix + filename).ToLower();
         }
     }
 }

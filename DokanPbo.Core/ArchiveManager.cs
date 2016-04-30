@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DokanPbo
 {
-    class ArchiveManager
+    public class ArchiveManager
     {
 
         public Dictionary<string, PboArchive> FilePathToArchive { get; internal set; }

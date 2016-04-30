@@ -7,7 +7,7 @@ using System.Security.AccessControl;
 
 namespace DokanPbo
 {
-    internal class PboFS : IDokanOperations
+    public class PboFS : IDokanOperations
     {
         private ArchiveManager archiveManager;
         private PboFSTree fileTree;

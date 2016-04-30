@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace DokanPbo
 {
-    class PboFSTree
+    public class PboFSTree
     {
         private ArchiveManager archiveManager;
         private PboFSFolder root;

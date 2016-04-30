@@ -47,7 +47,7 @@ namespace DokanPbo
             var currentFolder = this.root;
             var paths = path.Split('\\');
 
-            for (int i = 1; i < paths.Length; i++)
+            for (int i = 1; i < paths.Length - 1; i++)
             {
                 var folderName = paths[i];
                 currentFolder = (PboFSFolder)currentFolder.Children[folderName];

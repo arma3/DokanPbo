@@ -20,12 +20,23 @@ namespace DokanPbo
           HelpText = "Prefix used to filter PBO paths.")]
         public string Prefix { get; set; }
 
+        [Option('u', "unmount", Required = false,
+          HelpText = "Drive or directory to unmount.")]
+        public string UnmountDirectory { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
             return HelpText.AutoBuild(this,
               (HelpText current) => HelpText.DefaultParsingErrorsHandler(this, current));
         }
+    }
+
+    class UnmountOptions
+    {
+        [Option('u', "unmount", Required = true,
+          HelpText = "Drive or directory to unmount.")]
+        public string UnmountDirectory { get; set; }
     }
 
     internal class Program
@@ -39,6 +50,13 @@ namespace DokanPbo
 
         private static void Main(string[] args)
         {
+            var unmountOptions = new UnmountOptions();
+            if (CommandLine.Parser.Default.ParseArguments(args, unmountOptions))
+            {
+                Dokan.RemoveMountPoint(unmountOptions.UnmountDirectory);
+                return;
+            }
+
             var options = new Options();
             if (CommandLine.Parser.Default.ParseArguments(args, options))
             {

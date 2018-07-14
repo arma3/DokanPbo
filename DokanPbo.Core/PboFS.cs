@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using SwiftPbo;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.AccessControl;
 
 namespace DokanPbo
@@ -12,6 +13,8 @@ namespace DokanPbo
         private ArchiveManager archiveManager;
         private PboFSTree fileTree;
         private string prefix;
+
+        static readonly string CFG_CONVERT_PATH = (string)Registry.GetValue("HKEY_CURRENT_USER\\Software\\Bohemia Interactive\\cfgconvert", "path", "");
 
         public PboFS(PboFSTree fileTree, ArchiveManager archiveManager) : this(fileTree, archiveManager, "")
         {
@@ -23,6 +26,56 @@ namespace DokanPbo
             this.archiveManager = archiveManager;
             this.fileTree = fileTree;
             this.prefix = prefix;
+        }
+
+        public static bool HasCfgConvert()
+        {
+            return System.IO.File.Exists(CFG_CONVERT_PATH + "\\CfgConvert.exe");
+        }
+
+        private System.IO.Stream DeRapConfig(System.IO.Stream input, ulong fileSize, byte[] buffer)
+        {
+            var tempFileName = System.IO.Path.GetTempFileName();
+            var file = System.IO.File.Create(tempFileName);
+
+            //CopyTo with set number of bytes
+            var bytes = (int)fileSize;
+            int read;
+            while (bytes > 0 &&
+                   (read = input.Read(buffer, 0, Math.Min(buffer.Length, bytes))) > 0)
+            {
+                file.Write(buffer, 0, read);
+                bytes -= read;
+            }
+
+            file.Close();
+
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                CreateNoWindow = false,
+                UseShellExecute = false,
+                FileName = CFG_CONVERT_PATH + "\\CfgConvert.exe",
+                WindowStyle = ProcessWindowStyle.Hidden,
+                Arguments = "-txt " + tempFileName
+            };
+
+            try
+            {
+                using (var exeProcess = Process.Start(startInfo))
+                {
+                    exeProcess?.WaitForExit();
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+
+            var tempFileStream = new System.IO.FileStream(tempFileName, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.ReadWrite, 4096, System.IO.FileOptions.DeleteOnClose);
+            tempFileStream.Seek(0, System.IO.SeekOrigin.Begin);
+
+            return tempFileStream;
         }
 
         public void Cleanup(string filename, DokanFileInfo info)
@@ -92,13 +145,41 @@ namespace DokanPbo
 
         public NtStatus ReadFile(string filename, byte[] buffer, out int readBytes, long offset, DokanFileInfo info)
         {
-            var stream = this.archiveManager.ReadStream(PrefixedFilename(filename));
-            FileEntry file = null;
+            System.IO.Stream stream = null;
+            ulong fileSize = 0;
+            PboFSNode node = fileTree.NodeForPath(PrefixedFilename(filename));
 
-            if (stream != null && this.archiveManager.FilePathToFileEntry.TryGetValue(PrefixedFilename(filename), out file))
+            if (node is PboFSFile pboFile)
             {
+                stream = pboFile.File.Extract();
+                fileSize = pboFile.File.DataSize;
                 stream.Position += offset;
-                readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long) file.DataSize - offset)));
+            }
+
+            if (node is PboFSDummyFile dummyFile)
+            {
+                if (dummyFile.stream != null)
+                {
+                    stream = dummyFile.stream;
+                    fileSize = (ulong)dummyFile.stream.Length;
+                    stream.Position = offset;
+                }
+                else
+                {
+                    var derapStream = DeRapConfig(stream, fileSize, buffer);
+                    if (derapStream != null) //DeRap failed. Just return binary stream from pboFile
+                    {
+                        dummyFile.stream = derapStream;
+                        stream = derapStream;
+                        fileSize = (ulong)derapStream.Length;
+                        dummyFile.FileInformation.Length = derapStream.Length;
+                    }
+                }
+            }
+
+            if (stream != null)
+            {
+                readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long)fileSize - offset)));
                 return DokanResult.Success;
             }
 
@@ -160,7 +241,7 @@ namespace DokanPbo
         {
             volumeLabel = "PboFS";
             features = FileSystemFeatures.ReadOnlyVolume;
-            fileSystemName = String.Empty;
+            fileSystemName = "PboFS";
             maximumComponentLength = 256;
             return DokanResult.Success;
         }
@@ -197,7 +278,7 @@ namespace DokanPbo
 
         private string PrefixedFilename(string filename)
         {
-            if (prefix == null || prefix.Length == 0)
+            if (string.IsNullOrEmpty(prefix))
             {
                 return filename.ToLower();
             }

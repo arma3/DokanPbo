@@ -3,6 +3,7 @@ using CommandLine.Text;
 using DokanNet;
 using System;
 using System.Collections.Generic;
+using DokanNet.Logging;
 
 namespace DokanPbo
 {
@@ -66,7 +67,12 @@ namespace DokanPbo
                     ArchiveManager archiveManager = new ArchiveManager(options.PboDirectories);
                     PboFSTree fileTree = new PboFSTree(archiveManager);
                     PboFS pboFS = new PboFS(fileTree, archiveManager, options.Prefix);
-                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS);
+#if DEBUG
+                    var logger = null;
+#else
+                    var logger = new NullLogger();
+#endif
+                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS, logger);
                     Console.WriteLine("Success");
                 }
                 catch (DokanException ex)

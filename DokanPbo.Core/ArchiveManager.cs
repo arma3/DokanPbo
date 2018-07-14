@@ -43,6 +43,7 @@ namespace DokanPbo
             return file.Extract();
         }
 
+
         private void ReadPboFiles(string[] filePaths)
         {
             foreach(var filePath in filePaths)

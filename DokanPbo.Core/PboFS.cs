@@ -16,6 +16,7 @@ namespace DokanPbo
 
         static readonly string CFG_CONVERT_PATH = (string)Registry.GetValue("HKEY_CURRENT_USER\\Software\\Bohemia Interactive\\cfgconvert", "path", "");
 
+
         public PboFS(PboFSTree fileTree, ArchiveManager archiveManager) : this(fileTree, archiveManager, "")
         {
             
@@ -28,13 +29,14 @@ namespace DokanPbo
             this.prefix = prefix;
         }
 
-        public static bool HasCfgConvert()
+        public bool HasCfgConvert()
         {
             return System.IO.File.Exists(CFG_CONVERT_PATH + "\\CfgConvert.exe");
         }
 
         private System.IO.Stream DeRapConfig(System.IO.Stream input, ulong fileSize, byte[] buffer)
         {
+
             var tempFileName = System.IO.Path.GetTempFileName();
             var file = System.IO.File.Create(tempFileName);
 
@@ -153,7 +155,6 @@ namespace DokanPbo
             {
                 stream = pboFile.File.Extract();
                 fileSize = pboFile.File.DataSize;
-                stream.Position += offset;
             }
 
             if (node is PboFSDummyFile dummyFile)
@@ -162,23 +163,22 @@ namespace DokanPbo
                 {
                     stream = dummyFile.stream;
                     fileSize = (ulong)dummyFile.stream.Length;
-                    stream.Position = offset;
+                    stream.Seek(offset, System.IO.SeekOrigin.Begin);
                 }
                 else
                 {
                     var derapStream = DeRapConfig(stream, fileSize, buffer);
-                    if (derapStream != null) //DeRap failed. Just return binary stream from pboFile
-                    {
-                        dummyFile.stream = derapStream;
-                        stream = derapStream;
-                        fileSize = (ulong)derapStream.Length;
-                        dummyFile.FileInformation.Length = derapStream.Length;
-                    }
+
+                    dummyFile.stream = derapStream;
+                    stream = derapStream;
+                    fileSize = (ulong)derapStream.Length;
+                    dummyFile.FileInformation.Length = derapStream.Length;
                 }
             }
 
             if (stream != null)
             {
+                stream.Position += offset;
                 readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long)fileSize - offset)));
                 return DokanResult.Success;
             }

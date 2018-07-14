@@ -52,8 +52,10 @@ namespace DokanPbo
     {
         public System.IO.Stream stream = null;
 
-        public PboFSDummyFile(string name, FileEntry file) : base(name,file)
+        public PboFSDummyFile(string name, PboArchive archive, FileEntry file) : base(name,archive,file)
         {
         }
     }
+
+
 }

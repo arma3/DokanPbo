@@ -52,6 +52,17 @@ namespace DokanPbo
             return null;
         }
 
+        private void createFileTree()
+        {
+            PboFSNode node = null;
+            if (this.fileTreeLookup.TryGetValue(path, out node))
+            {
+                return node;
+            }
+
+            return null;
+        }
+
         private void CreateFileTree()
         {
             this.root = new PboFSFolder(null);
@@ -94,7 +105,7 @@ namespace DokanPbo
                 var fileNode = new PboFSFile(fileName, file);
                 currentFolder.Children[fileName] = fileNode;
                 this.fileTreeLookup[filePath] = fileNode;
-                if (hasCfgConvert && fileName == "config.bin")
+                if (fileName == "config.bin")
                 {
                     var derapNode = new PboFSDummyFile("config.cpp", file);
                     currentFolder.Children["config.cpp"] = derapNode;

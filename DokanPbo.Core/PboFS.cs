@@ -140,7 +140,7 @@ namespace DokanPbo
                 if (foundNode == null)
                 {
                     folder = new PboFsFolder(folderName, currentFolder);
-                    fileTree.AddNode(currentPath, folder);
+                    fileTree.AddNode(folder);
                 }
                 else
                 {
@@ -175,15 +175,16 @@ namespace DokanPbo
                     case FileMode.OpenOrCreate:
                         if (filename.Length == 0)
                             return NtStatus.Success;
-                        var Directory = filename.Substring(0, filename.LastIndexOf('\\'));
-                        if (Directory.Length == 0)
-                            Directory = "\\";
+                        string Directory = filename;
+                        if (!info.IsDirectory) //Directory doesn't have a filename that we want to cut off
+                        {
+                            Directory = filename.Substring(0, filename.LastIndexOf('\\'));
+                            if (Directory.Length == 0)
+                                Directory = "\\";
+                        }
+                        
 
                         var nodeDirectory = CreateOrFindDirectoryRecursive(Directory);
-
-                        //Filename without folder path
-                        var FileNameDirect = filename.Substring(filename.LastIndexOf('\\'));
-                        var FileNameDirectNoLeadingSlash = filename.Substring(filename.LastIndexOf('\\') + 1);
 
                         if (!(nodeDirectory is PboFsRealFolder) && nodeDirectory is PboFsFolder virtualFolder)
                         {
@@ -195,16 +196,16 @@ namespace DokanPbo
 
                             if (info.IsDirectory)
                             {
-                                System.IO.Directory.CreateDirectory(folder.path + FileNameDirect);//#TODO create directory recursively if needed
-
-                                var rlFolder = new PboFsRealFolder(FileNameDirectNoLeadingSlash, folder.path + FileNameDirect, folder);
-
-                                folder.Children[FileNameDirectNoLeadingSlash.ToLower()] = rlFolder;
-                                fileTree.AddNode(filename.ToLower(), rlFolder);
-                                info.Context = rlFolder;
+                                info.Context = nodeDirectory;
+                                //Nothing else to do as full path is already included in DirectoryPath
                             }
                             else
                             {
+
+                                //Filename without folder path
+                                var FileNameDirect = filename.Substring(filename.LastIndexOf('\\'));
+                                var FileNameDirectNoLeadingSlash = filename.Substring(filename.LastIndexOf('\\') + 1);
+
                                 FileStream newStream = null;
                                 try
                                 {
@@ -219,7 +220,7 @@ namespace DokanPbo
                                 var rlFile = new PboFsRealFile(new System.IO.FileInfo(folder.path + FileNameDirect), folder, newStream);
 
                                 folder.Children[FileNameDirectNoLeadingSlash.ToLower()] = rlFile;
-                                fileTree.AddNode(filename.ToLower(), rlFile);
+                                fileTree.AddNode(rlFile);
                                 info.Context = rlFile;
                             }
 
@@ -262,7 +263,7 @@ namespace DokanPbo
                 return DokanResult.AccessDenied;
 
             if (node is IPboFsFile file && (wantsRead || wantsWrite))
-                return file.Open(wantsWrite); 
+                return file.Open(wantsWrite, mode);
 
             return DokanResult.Success;
         }
@@ -270,8 +271,8 @@ namespace DokanPbo
         public NtStatus DeleteDirectory(string filename, DokanFileInfo info)
         {
             //This is called after Windows asked the user for confirmation.
-
-            if (!(GetNodeFast(filename, info) is PboFsRealFolder folder)) return DokanResult.NotImplemented;
+            var gnf = GetNodeFast(filename, info);
+            if (!(gnf is PboFsRealFolder folder)) return DokanResult.NotImplemented;
 
             try
             {
@@ -415,14 +416,15 @@ namespace DokanPbo
                     nodeTargetDirectory.Children.Add(targetFilenameDirect.ToLower(), nodeSourceDirectory.Children[sourceFilenameDirect.ToLower()]);
                     nodeSourceDirectory.Children.Remove(sourceFilenameDirect.ToLower());
 
-
-                    fileTree.AddNode(PrefixedFilename(newname), file);
-                    fileTree.DeleteNode(PrefixedFilename(filename));
+                    fileTree.DeleteNode(file);
 
                     System.IO.File.Move(file.GetRealPath(), fileTree.writeableDirectory + newname);
 
                     file.file = new FileInfo(fileTree.writeableDirectory + newname);
                     file.FileInformation.FileName = targetFilenameDirect;
+                    file.parent = nodeTargetDirectory;
+
+                    fileTree.AddNode(file);
 
                     return DokanResult.Success;
                 case PboFsRealFolder folder:
@@ -433,26 +435,48 @@ namespace DokanPbo
                     nodeTargetDirectory.Children.Add(targetFilenameDirect.ToLower(), nodeSourceDirectory.Children[sourceFilenameDirect.ToLower()]);
                     nodeSourceDirectory.Children.Remove(sourceFilenameDirect.ToLower());
 
-                    fileTree.AddNode(PrefixedFilename(newname), folder);
-                    fileTree.DeleteNode(PrefixedFilename(filename));
+
+                    void doNodesRecursive(PboFsFolder folderIn, bool remove)
+                    {
+                        foreach (var entry in folderIn.Children)
+                        {
+                            if (remove)
+                            {
+                                fileTree.DeleteNode(entry.Value);
+                                if (entry.Value is PboFsRealFile file)
+                                {
+                                    file.Close();
+                                }
+                            }
+                                
+                            else
+                            {
+                                fileTree.AddNode(entry.Value);
+                                if (entry.Value is PboFsRealFile file)
+                                {
+                                    file.file = new FileInfo(file.file.FullName.Replace(filename,newname));
+                                }
+
+                            }
+                                
+                            if (entry.Value is PboFsFolder nextFolder)
+                                doNodesRecursive(nextFolder, remove);
+                        }
+                    }
+
+
+
+                    fileTree.DeleteNode(folder);
+                    doNodesRecursive(folder, true);
 
                     System.IO.Directory.Move(folder.path, fileTree.writeableDirectory + newname);
                     folder.path = fileTree.writeableDirectory + newname;
                     folder.FileInformation.FileName = targetFilenameDirect;
+                    folder.parent = nodeTargetDirectory;
 
-                    void moveNodesRecursive(PboFsFolder folderIn, string basePath)
-                    {
-                        foreach (var entry in folderIn.Children)
-                        {
-                            var curFullPath = basePath + "\\" + entry.Key;
-                            fileTree.AddNode(newname + curFullPath.Substring(filename.Length), entry.Value);
-                            fileTree.DeleteNode(curFullPath);
-                            if (entry.Value is PboFsFolder nextFolder)
-                                moveNodesRecursive(nextFolder, curFullPath);
-                        }
-                    }
+                    fileTree.AddNode(folder);
 
-                    moveNodesRecursive(folder, filename);
+                    doNodesRecursive(folder, false);
 
                     return DokanResult.Success;
                 default:

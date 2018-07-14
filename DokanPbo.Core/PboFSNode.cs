@@ -30,12 +30,10 @@ namespace DokanPbo
 
     class PboFSFile : PboFSNode
     {
-        public PboArchive Archive;
         public FileEntry File;
 
-        public PboFSFile(string name, PboArchive archive, FileEntry file) : base()
+        public PboFSFile(string name, FileEntry file) : base()
         {
-            Archive = archive;
             File = file;
             var fileTimestamp = new DateTime(1970, 1, 1, 0, 0, 0, 0).ToLocalTime().AddSeconds(file.TimeStamp);
             FileInformation = new DokanNet.FileInformation()

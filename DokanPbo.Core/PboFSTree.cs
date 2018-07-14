@@ -32,7 +32,7 @@ namespace DokanPbo
 
         public FileInformation FileInfoForPath(string path)
         {
-            PboFSNode node = this.fileTreeLookup[path];
+            PboFSNode node;
             if (this.fileTreeLookup.TryGetValue(path, out node))
             {
                 return node.FileInformation;

@@ -44,9 +44,9 @@ namespace DokanPbo
     {
 
 #if DEBUG
-        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.StderrOutput;
+        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.StderrOutput | DokanOptions.WriteProtection;
 #else
-        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.FixedDrive;
+        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.FixedDrive | DokanOptions.WriteProtection;
 #endif
 
         private static void Main(string[] args)

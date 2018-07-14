@@ -159,7 +159,7 @@ namespace DokanPbo
         public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features, out string fileSystemName, out uint maximumComponentLength, DokanFileInfo info)
         {
             volumeLabel = "PboFS";
-            features = FileSystemFeatures.None;
+            features = FileSystemFeatures.ReadOnlyVolume;
             fileSystemName = String.Empty;
             maximumComponentLength = 256;
             return DokanResult.Success;

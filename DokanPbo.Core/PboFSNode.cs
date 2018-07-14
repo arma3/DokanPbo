@@ -37,14 +37,15 @@ namespace DokanPbo
         {
             Archive = archive;
             File = file;
+            var fileTimestamp = new DateTime(1970, 1, 1, 0, 0, 0, 0).ToLocalTime().AddSeconds(file.TimeStamp);
             FileInformation = new DokanNet.FileInformation()
             {
                 Attributes = System.IO.FileAttributes.Normal,
                 FileName = name,
                 Length = (long)file.DataSize,
                 LastAccessTime = DateTime.Now,
-                LastWriteTime = DateTime.Now,
-                CreationTime = DateTime.Now,
+                LastWriteTime = fileTimestamp,
+                CreationTime = fileTimestamp,
             };
         }
     }

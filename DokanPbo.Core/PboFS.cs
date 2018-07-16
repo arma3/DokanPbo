@@ -163,7 +163,6 @@ namespace DokanPbo
                 {
                     stream = dummyFile.stream;
                     fileSize = (ulong)dummyFile.stream.Length;
-                    stream.Seek(offset, System.IO.SeekOrigin.Begin);
                 }
                 else
                 {
@@ -178,7 +177,7 @@ namespace DokanPbo
 
             if (stream != null)
             {
-                stream.Position += offset;
+                stream.Position = offset;
                 readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long)fileSize - offset)));
                 return DokanResult.Success;
             }

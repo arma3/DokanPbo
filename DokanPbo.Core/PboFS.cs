@@ -29,7 +29,7 @@ namespace DokanPbo
             this.prefix = prefix;
         }
 
-        public bool HasCfgConvert()
+        public static bool HasCfgConvert()
         {
             return System.IO.File.Exists(CFG_CONVERT_PATH + "\\CfgConvert.exe");
         }
@@ -167,11 +167,13 @@ namespace DokanPbo
                 else
                 {
                     var derapStream = DeRapConfig(stream, fileSize, buffer);
-
-                    dummyFile.stream = derapStream;
-                    stream = derapStream;
-                    fileSize = (ulong)derapStream.Length;
-                    dummyFile.FileInformation.Length = derapStream.Length;
+                    if (derapStream != null) //DeRap failed. Just return binary stream from pboFile
+                    {
+                        dummyFile.stream = derapStream;
+                        stream = derapStream;
+                        fileSize = (ulong)derapStream.Length;
+                        dummyFile.FileInformation.Length = derapStream.Length;
+                    }
                 }
             }
 

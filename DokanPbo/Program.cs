@@ -44,13 +44,15 @@ namespace DokanPbo
     {
 
 #if DEBUG
-        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.StderrOutput | DokanOptions.WriteProtection;
+        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.StderrOutput;
 #else
-        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.FixedDrive | DokanOptions.WriteProtection;
+        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.FixedDrive;
 #endif
 
         private static void Main(string[] args)
         {
+           
+
             var unmountOptions = new UnmountOptions();
             if (CommandLine.Parser.Default.ParseArguments(args, unmountOptions))
             {
@@ -61,7 +63,7 @@ namespace DokanPbo
             var options = new Options();
             if (CommandLine.Parser.Default.ParseArguments(args, options))
             {
-
+                Dokan.RemoveMountPoint(options.MountDirectory); //#TODO remove this
                 try
                 {
                     ArchiveManager archiveManager = new ArchiveManager(options.PboDirectories);

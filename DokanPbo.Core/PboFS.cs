@@ -155,6 +155,7 @@ namespace DokanPbo
             {
                 stream = pboFile.File.Extract();
                 fileSize = pboFile.File.DataSize;
+                stream.Position += offset;
             }
 
             if (node is PboFSDummyFile dummyFile)
@@ -163,6 +164,7 @@ namespace DokanPbo
                 {
                     stream = dummyFile.stream;
                     fileSize = (ulong)dummyFile.stream.Length;
+                    stream.Position = offset;
                 }
                 else
                 {
@@ -175,11 +177,11 @@ namespace DokanPbo
                         dummyFile.FileInformation.Length = derapStream.Length;
                     }
                 }
+
             }
 
             if (stream != null)
             {
-                stream.Position = offset;
                 readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int) ((long)fileSize - offset)));
                 return DokanResult.Success;
             }

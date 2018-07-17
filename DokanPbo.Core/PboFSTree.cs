@@ -47,9 +47,8 @@ namespace DokanPbo
             this.fileTreeLookup = new Dictionary<string, PboFSNode>();
             this.fileTreeLookup["\\"] = this.root;
 
-            foreach (string filePath in this.archiveManager.FilePathToArchive.Keys)
+            foreach (string filePath in this.archiveManager.FilePathToFileEntry.Keys)
             {
-                PboArchive archive = this.archiveManager.FilePathToArchive[filePath];
                 FileEntry file = this.archiveManager.FilePathToFileEntry[filePath];
 
                 PboFSFolder currentFolder = root;
@@ -79,7 +78,7 @@ namespace DokanPbo
                 }
 
                 var fileName = paths[paths.Length - 1];
-                var fileNode = new PboFSFile(fileName, archive, file);
+                var fileNode = new PboFSFile(fileName, file);
                 currentFolder.Children[fileName] = fileNode;
                 this.fileTreeLookup[filePath] = fileNode;
             }

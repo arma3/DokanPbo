@@ -11,14 +11,12 @@ namespace DokanPbo
     public class ArchiveManager
     {
 
-        public Dictionary<string, PboArchive> FilePathToArchive { get; internal set; }
         public Dictionary<string, FileEntry> FilePathToFileEntry { get; internal set; }
 
         public long TotalBytes { get; internal set; }
 
         public ArchiveManager(string[] folderPaths)
         {
-            FilePathToArchive = new Dictionary<string, PboArchive>();
             FilePathToFileEntry = new Dictionary<string, FileEntry>();
             TotalBytes = 0;
 
@@ -30,16 +28,11 @@ namespace DokanPbo
 
         public Stream ReadStream(string filePath)
         {
-            PboArchive archive = null;
+            FileEntry file = null;
 
-            if (FilePathToArchive.TryGetValue(filePath, out archive))
+            if (FilePathToFileEntry.TryGetValue(filePath, out file))
             {
-                FileEntry file = null;
-
-                if (FilePathToFileEntry.TryGetValue(filePath, out file))
-                {
-                    return archive.Extract(file);
-                }
+                return file.Extract();
             }
 
             return null;
@@ -54,13 +47,12 @@ namespace DokanPbo
                 foreach (var file in archive.Files)
                 {
                     var prefix = "";
-                    if (archive.ProductEntry.Prefix != null && archive.ProductEntry.Prefix.Length > 0)
+                    if (!string.IsNullOrEmpty(archive.ProductEntry.Prefix))
                     {
                         prefix = "\\" + archive.ProductEntry.Prefix;
                     }
 
                     var wholeFilePath = (prefix + "\\" + file.FileName).ToLower();
-                    FilePathToArchive[wholeFilePath] = archive;
                     FilePathToFileEntry[wholeFilePath] = file;
                     TotalBytes += (long) file.DataSize;
                 }

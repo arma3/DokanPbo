@@ -28,7 +28,7 @@ namespace DokanPbo
                 return folder.Children.Values.Select(f => f.FileInformation).ToList();
             }
 
-            return new FileInformation[0];
+            return null;
         }
 
         public FileInformation FileInfoForPath(string path)
@@ -55,7 +55,7 @@ namespace DokanPbo
 
         private void CreateFileTree()
         {
-            this.root = new PboFSRealFolder(null, "X:\\pbos", null); //#TODO use global writefiles folder
+            this.root = new PboFSRealFolder(null, "I:\\dk2", null); //#TODO use global writefiles folder
             this.fileTreeLookup = new Dictionary<string, IPboFsNode>();
             this.fileTreeLookup["\\"] = this.root;
             var hasCfgConvert = PboFS.HasCfgConvert();
@@ -103,17 +103,19 @@ namespace DokanPbo
                 }
             }
 
-            var rlFile = new PboFSRealFile(new System.IO.FileInfo("X:\\bintreee.cpp"), this.root);
-
-            this.root.Children["bintreee.cpp"] = rlFile;
-            this.fileTreeLookup["\\bintreee.cpp"] = rlFile;
-
-
-
-            WalkDirectoryTree(new System.IO.DirectoryInfo("X:\\pbos\\"), "", this.root, true);
+            // var rlFile = new PboFSRealFile(new System.IO.FileInfo("X:\\bintreee.cpp"), this.root);
+            //
+            // //#TODO check if file exists
+            // this.root.Children["bintreee.cpp"] = rlFile;
+            // this.fileTreeLookup["\\bintreee.cpp"] = rlFile;
 
 
+            //#TODO check if file exists
 
+            var folderR = new PboFSRealFolder("ace", "I:\\ACE3\\", fileTreeLookup["\\z"] as PboFSFolder);
+            fileTreeLookup["\\z\\ace"] = folderR;
+            (fileTreeLookup["\\z"] as PboFSFolder).Children["ace"] = folderR;
+            WalkDirectoryTree(new System.IO.DirectoryInfo("I:\\ACE3\\"), "\\z\\ace", folderR, true);
         }
 
         void WalkDirectoryTree(System.IO.DirectoryInfo root, string currentPath, PboFSFolder rootDir, bool first)

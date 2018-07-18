@@ -45,7 +45,7 @@ namespace DokanPbo
             Children = new Dictionary<string, IPboFsNode>();
             FileInformation = new DokanNet.FileInformation()
             {
-                Attributes = System.IO.FileAttributes.Directory | FileAttributes.ReadOnly | FileAttributes.Temporary,
+                Attributes = System.IO.FileAttributes.Directory,// | FileAttributes.ReadOnly | FileAttributes.Temporary,
                 FileName = name,
                 LastAccessTime = DateTime.Now,
                 LastWriteTime = DateTime.Now,
@@ -317,6 +317,12 @@ namespace DokanPbo
             }
 
             System.IO.File.SetLastWriteTime(file.FullName, wtimeValue);
+        }
+
+        public void Flush()
+        {
+            writeStream?.Flush();
+            readStream?.Flush();
         }
     }
 

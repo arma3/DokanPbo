@@ -70,7 +70,7 @@ namespace DokanPbo
                     PboFSTree fileTree = new PboFSTree(archiveManager);
                     PboFS pboFS = new PboFS(fileTree, archiveManager, options.Prefix);
 #if DEBUG
-                    ILogger logger = null;
+                    ILogger logger = new NullLogger(); //null;
 #else
                     ILogger logger = new NullLogger();
 #endif

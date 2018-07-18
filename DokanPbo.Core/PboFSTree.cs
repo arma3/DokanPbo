@@ -147,8 +147,8 @@ namespace DokanPbo
                 foreach (var fi in files)
                 {
                     var newFile = new PboFSRealFile(fi, rootDir);
-                    rootDir.Children[fi.FullName.ToLower()] = newFile;
-                    this.fileTreeLookup[(currentPath + "\\" + fi.Name).ToLower()] = newFile;
+                    rootDir.Children[fi.Name.ToLower()] = newFile;
+                    this.fileTreeLookup[currentPath + "\\" + fi.Name.ToLower()] = newFile;
                 }
 
                 // Now find all the subdirectories under this directory.

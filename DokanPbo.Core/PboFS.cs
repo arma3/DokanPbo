@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.AccessControl;
 using FileAccess = DokanNet.FileAccess;
 
@@ -91,6 +92,13 @@ namespace DokanPbo
             return activeHandles.TryGetValue(prefixedFilename, out var node) ? (node, true) : (fileTree.NodeForPath(prefixedFilename), false);
         }
 
+        public void DeleteNode(string filename)
+        {
+            fileTree.DeleteNode(PrefixedFilename(filename));
+            activeHandles.Remove(PrefixedFilename(filename));
+        }
+
+
         public void Cleanup(string filename, DokanFileInfo info)
         {
         }
@@ -108,6 +116,10 @@ namespace DokanPbo
 
         public NtStatus CreateFile(string filename, FileAccess access, System.IO.FileShare share, System.IO.FileMode mode, System.IO.FileOptions options, System.IO.FileAttributes attributes, DokanFileInfo info)
         {
+            if (filename.Contains(".svn")) return DokanResult.FileNotFound;
+            if (filename.Contains(".git")) return DokanResult.FileNotFound;
+            if (filename.Contains("HEAD")) return DokanResult.FileNotFound;
+            if (filename.Contains("desktop.ini")) return DokanResult.FileNotFound;
             var (node, fromOpenFiles) = FindNode(filename);
 
 
@@ -127,7 +139,8 @@ namespace DokanPbo
                         var nodeDirectory = FindNode(Directory).node;
 
                         //Filename without folder path
-                        var FileNameDirect = filename.Substring(filename.LastIndexOf('\\')).ToLower();
+                        var FileNameDirect = filename.Substring(filename.LastIndexOf('\\'));
+                        var FileNameDirectNoLeadingSlash = filename.Substring(filename.LastIndexOf('\\') + 1);
 
                         //#TODO if PboFSFolder create directory recursively if needed
 
@@ -136,12 +149,13 @@ namespace DokanPbo
 
                             if (info.IsDirectory)
                             {
-                                System.IO.Directory.CreateDirectory(folder.path + filename);//#TODO create directory recursively if needed
+                                System.IO.Directory.CreateDirectory(folder.path + FileNameDirect);//#TODO create directory recursively if needed
 
-                                var rlFolder = new PboFSRealFolder(filename.Substring(filename.LastIndexOf('\\')+1), folder.path + filename, folder);
+                                var rlFolder = new PboFSRealFolder(FileNameDirectNoLeadingSlash, folder.path + FileNameDirect, folder);
 
                                 folder.Children[rlFolder.FileInformation.FileName.ToLower()] = rlFolder;
                                 fileTree.AddNode(filename.ToLower(), rlFolder);
+                                info.Context = rlFolder;
                             }
                             else
                             {
@@ -156,11 +170,17 @@ namespace DokanPbo
                                 }
 
                                 //#TODO plug newStream into pbofile and add to activeHandles
-                                var rlFile = new PboFSRealFile(new System.IO.FileInfo(folder.path + "\\" + FileNameDirect), folder);
 
-                                folder.Children[FileNameDirect] = rlFile;
+
+                                if ((folder.path + FileNameDirect).Contains("\\\\")) Debugger.Break();
+
+                                var rlFile = new PboFSRealFile(new System.IO.FileInfo(folder.path + FileNameDirect), folder, newStream);
+
+                                folder.Children[FileNameDirectNoLeadingSlash.ToLower()] = rlFile;
                                 fileTree.AddNode(filename.ToLower(), rlFile);
-                                newStream.Close();
+
+                                activeHandles[filename.ToLower()] = rlFile;
+                                info.Context = rlFile;
                             }
 
 
@@ -175,8 +195,9 @@ namespace DokanPbo
                 }
             }
 
-            if (mode == FileMode.CreateNew) return DokanResult.FileExists;
+            info.Context = node;
 
+            if (mode == FileMode.CreateNew) return DokanResult.FileExists;
 
             if (access == FileAccess.Delete)
             {
@@ -186,13 +207,16 @@ namespace DokanPbo
                 else if (node is PboFSRealFolder)
                     deleteResult = DeleteDirectory(filename, info);
 
-                if (deleteResult != DokanResult.Success)
-                    return DokanResult.AccessDenied;
+                return deleteResult;
             }
 
             bool wantsWrite = (access & 
                                (FileAccess.WriteData | FileAccess.AppendData | FileAccess.Delete | FileAccess.GenericWrite)
-                              ) != 0; 
+                              ) != 0;
+
+            bool wantsRead = (access &
+                              (FileAccess.ReadData | FileAccess.GenericRead | FileAccess.Execute | FileAccess.GenericExecute)
+                             ) != 0;
 
             //#TODO check if can write
             if (wantsWrite && !(node is PboFSRealFolder) && !(node is PboFSRealFile))
@@ -200,10 +224,10 @@ namespace DokanPbo
 
 
             if (!fromOpenFiles)
-                activeHandles[filename] = node;
+                activeHandles[filename.ToLower()] = node; //#TODO make a case insensitive string key dictionary
 
-            if (node is IPboFSFile file)
-                return file.Open();
+            if (node is IPboFSFile file && (wantsRead || wantsWrite))
+                return file.Open(wantsWrite);
 
             return DokanResult.Success;
         }
@@ -218,19 +242,30 @@ namespace DokanPbo
             {
                 try
                 {
+
+                    foreach (var subfile in folder.Children.Keys.ToArray()) //Remove all Children from fileTree
+                    {
+                        if (folder.Children[subfile] is PboFSRealFolder)
+                            DeleteDirectory(filename + "\\" + subfile, null);
+                        else
+                        {
+                            DeleteNode(filename + "\\" + subfile);
+                            folder.Children.Remove(subfile);
+                        }
+                    }
+
                     System.IO.Directory.Delete(folder.path, true);
                 }
                 catch (Exception e)
-                {
+                { 
+                    might be still in use 
+                        or access denied. Handle both differently. Also never throw "Error" if possible. That displays faulty message in windows
                     return DokanResult.Error;
                 }
                 
-                fileTree.DeleteNode(PrefixedFilename(filename));
+                DeleteNode(filename); //Remove myself
 
-                foreach (var subfile in folder.Children.Keys) //Remove all Children from fileTree
-                    fileTree.DeleteNode(PrefixedFilename(filename + "\\" + subfile));
-
-                folder.parent?.Children?.Remove(node.FileInformation.FileName.ToLower());
+                folder.parent?.Children?.Remove(node.FileInformation.FileName.ToLower()); //Remove myself from parent
 
                 return DokanResult.Success;
             }
@@ -248,6 +283,7 @@ namespace DokanPbo
             {
                 try
                 {
+                    file.Close();
                     System.IO.File.Delete(file.file.FullName);
                 }
                 catch (DirectoryNotFoundException e)
@@ -255,7 +291,7 @@ namespace DokanPbo
                     //File is already gone. Just return success
                 }
 
-                fileTree.DeleteNode(PrefixedFilename(filename));
+                DeleteNode(filename);
                 file.parent?.Children?.Remove(node.FileInformation.FileName.ToLower());
                 return DokanResult.Success;
             }
@@ -309,11 +345,18 @@ namespace DokanPbo
 
         public NtStatus ReadFile(string filename, byte[] buffer, out int readBytes, long offset, DokanFileInfo info)
         {
-            if (FindNode(filename).node is IPboFSFile file)
+            IPboFsNode node;
+            if (info.Context is IPboFsNode contextNode)
+                node = contextNode;
+            else
+                node = FindNode(filename).node;
+
+
+            if (node is IPboFSFile file)
             {
                 var result = file.ReadFile(buffer, out readBytes, offset);
                 if (result == DokanResult.FileNotFound)
-                    fileTree.DeleteNode(filename);
+                    DeleteNode(filename);
 
                 return result;
             }
@@ -325,12 +368,17 @@ namespace DokanPbo
 
         public NtStatus WriteFile(string filename, byte[] buffer, out int writtenBytes, long offset, DokanFileInfo info)
         {
+            IPboFsNode node;
+            if (info.Context is IPboFsNode contextNode)
+                node = contextNode;
+            else
+                node = FindNode(filename).node;
 
-            if (FindNode(filename).node is PboFSRealFile file)
+            if (node is PboFSRealFile file)
             {
                 var result = file.WriteFile(buffer, out writtenBytes, offset);
                 if (result == DokanResult.FileNotFound)
-                    fileTree.DeleteNode(filename);
+                    DeleteNode(filename);
 
                 return result;
             }
@@ -342,14 +390,22 @@ namespace DokanPbo
 
         public NtStatus SetEndOfFile(string filename, long length, DokanFileInfo info)
         {
-            7z unpack error Can not set length for output file 
-                Fix dis
+            if (FindNode(filename).node is PboFSRealFile file)
+            {
+                var result = file.SetEof(length);
+                if (result == DokanResult.FileNotFound)
+                    DeleteNode(filename);
+
+                return result;
+            }
+
             return DokanResult.Error;
         }
 
         public NtStatus SetAllocationSize(string filename, long length, DokanFileInfo info)
         {
-            return DokanResult.Error;
+
+            return SetEndOfFile(filename, length, info);
         }
 
         public NtStatus SetFileAttributes(string filename, System.IO.FileAttributes attr, DokanFileInfo info)
@@ -363,7 +419,14 @@ namespace DokanPbo
                 return DokanResult.Success;
             }
 
-            return DokanResult.Error;
+            if (node is PboFSRealFolder folder)
+            {
+                System.IO.File.SetAttributes(folder.path, attr | FileAttributes.Directory);
+                folder.FileInformation.Attributes = attr | FileAttributes.Directory;
+                return DokanResult.Success;
+            }
+
+            return DokanResult.NotImplemented; //Error message "Invalid Function"
         }
 
         public NtStatus SetFileTime(string filename, DateTime? ctime, DateTime? atime, DateTime? wtime, DokanFileInfo info)
@@ -386,8 +449,7 @@ namespace DokanPbo
                     
                 if (wtime != null)
                 {
-                    System.IO.File.SetLastWriteTime(file.file.FullName, wtime.Value);
-                    file.FileInformation.LastWriteTime = wtime.Value;
+                    file.SetLastWriteTime(wtime.Value);
                 }
 
                 return DokanResult.Success;
@@ -417,7 +479,7 @@ namespace DokanPbo
             }
 
 
-            return DokanResult.Error;
+            return DokanResult.AccessDenied;
         }
 
         public NtStatus UnlockFile(string filename, long offset, long length, DokanFileInfo info)

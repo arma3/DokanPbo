@@ -2,7 +2,10 @@
 using SwiftPbo;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Net;
+using FileAccess = System.IO.FileAccess;
 
 namespace DokanPbo
 {
@@ -21,7 +24,7 @@ namespace DokanPbo
         public abstract NtStatus ReadFile(byte[] buffer, out int readBytes, long offset);
         
         //Can be used to prepare the Stream and keep it in cache
-        public virtual NtStatus Open()
+        public virtual NtStatus Open(bool write = false)
         {
             return NtStatus.Success;
         }
@@ -42,7 +45,7 @@ namespace DokanPbo
             Children = new Dictionary<string, IPboFsNode>();
             FileInformation = new DokanNet.FileInformation()
             {
-                Attributes = System.IO.FileAttributes.Directory,
+                Attributes = System.IO.FileAttributes.Directory | FileAttributes.ReadOnly | FileAttributes.Temporary,
                 FileName = name,
                 LastAccessTime = DateTime.Now,
                 LastWriteTime = DateTime.Now,
@@ -61,7 +64,7 @@ namespace DokanPbo
             var fileTimestamp = new DateTime(1970, 1, 1, 0, 0, 0, 0).ToLocalTime().AddSeconds(file.TimeStamp);
             FileInformation = new DokanNet.FileInformation()
             {
-                Attributes = System.IO.FileAttributes.Normal,
+                Attributes = System.IO.FileAttributes.Normal | FileAttributes.ReadOnly | FileAttributes.Temporary,
                 FileName = name,
                 Length = (long)file.DataSize,
                 LastAccessTime = DateTime.Now,
@@ -143,6 +146,7 @@ namespace DokanPbo
         {
             path = inputPath;
             parent = inputParent;
+            FileInformation.Attributes = System.IO.FileAttributes.Directory;
         }
     }
 
@@ -150,12 +154,66 @@ namespace DokanPbo
     {
         public PboFSFolder parent;
         public System.IO.FileInfo file;
+        private System.IO.FileStream readStream = null;
+        private System.IO.FileStream writeStream = null;
+
+        //In case someone tries to set lastWriteTime while we have a Write stream open.
+        private DateTime? lastWriteTimeTodo;
+
+        //Might throw FileNotFoundException
+        private System.IO.FileStream OpenStream(bool write)
+        {
+            return file.Open(FileMode.Open, write ? FileAccess.ReadWrite : FileAccess.Read, FileShare.ReadWrite);
+        }
+
+        //Might throw FileNotFoundException
+        //This doesn't cache the Stream
+        private (System.IO.FileStream stream, bool fromCache) GetStream(bool write)
+        {
+            if (writeStream != null)
+                return (writeStream, true); //writeStream can read and write
+
+            return write ? (writeStream ?? OpenStream(true), writeStream != null) : (readStream ?? OpenStream(false), readStream != null);
+        }
+
+        public override NtStatus Open(bool write)
+        {
+            try
+            {
+                var stream = OpenStream(write);
+                if (write)
+                    writeStream = stream;
+                else
+                    readStream = stream;
+                return NtStatus.Success;
+            }
+            catch (FileNotFoundException e)
+            {
+                return DokanResult.FileNotFound;
+            }
+        }
+
+        public override void Close()
+        {
+            writeStream?.Flush();
+            writeStream?.Close();
+            writeStream?.Dispose();
+            writeStream = null;
+
+            readStream?.Flush();
+            readStream?.Close();
+            readStream?.Dispose();
+            readStream = null;
+            if (lastWriteTimeTodo != null)
+                SetLastWriteTime(lastWriteTimeTodo.Value);
+            lastWriteTimeTodo = null;
+        }
 
         public PboFSRealFile(System.IO.FileInfo inputFile, PboFSFolder inputParent) : base()
         {
             file = inputFile;
             parent = inputParent;
-            
+
             FileInformation = new DokanNet.FileInformation()
             {
                 Attributes = file.Attributes,
@@ -167,6 +225,11 @@ namespace DokanPbo
             };
         }
 
+        public PboFSRealFile(System.IO.FileInfo inputFile, PboFSFolder inputParent, System.IO.FileStream writeableStream) : this(inputFile, inputParent)
+        {
+            writeStream = writeableStream;
+        }
+
         public override NtStatus ReadFile(byte[] buffer, out int readBytes, long offset)
         {
             if (offset > file.Length)
@@ -175,59 +238,86 @@ namespace DokanPbo
                 return NtStatus.EndOfFile;
             }
 
-            FileStream stream = null;
             try
             {
-                stream = file.OpenRead();
+                var (stream, streamFromCache) = GetStream(false);
+
+                stream.Position = offset;
+                //#TODO check if Read offset parameter can be used
+                readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int)(Filesize - offset)));
+
+                if (!streamFromCache)
+                    stream.Close();
+
+                return DokanResult.Success;
             }
             catch (FileNotFoundException e)
             {
                 readBytes = 0;
                 return DokanResult.FileNotFound;
             }
-            
-            stream.Position = offset;
-            
-            //#TODO check if Read offset parameter can be used
-            readBytes = stream.Read(buffer, 0, Math.Min(buffer.Length, (int)(Filesize - offset)));
-            stream.Close(); //#TODO cache via Open/Close methods
-            return DokanResult.Success;
         }
 
         public NtStatus WriteFile(byte[] buffer, out int writtenBytes, long offset)
         {
-            if (offset > file.Length)
-            {
-                writtenBytes = 0;
-                return NtStatus.EndOfFile;
-            }
-
-            FileStream stream = null;
             try
             {
-                stream = file.OpenWrite();
+                var (stream, streamFromCache) = GetStream(true);
+
+                stream.Position = offset;
+
+                writtenBytes = buffer.Length;
+                stream.Write(buffer, 0, buffer.Length);
+                stream.Flush();
+
+                file.Refresh();
+                FileInformation.Length = file.Length;
+
+                if (!streamFromCache)
+                    stream.Close();
+
+                return DokanResult.Success;
             }
             catch (FileNotFoundException e)
             {
                 writtenBytes = 0;
                 return DokanResult.FileNotFound;
+            } //#TODO access denied exception
+        }
+
+        public NtStatus SetEof(long length)
+        {
+            try
+            {
+                var (stream, streamFromCache) = GetStream(true);
+
+                stream.SetLength(length);
+                stream.Flush();
+
+                if (!streamFromCache)
+                    stream.Close(); //#TODO cache
+                return DokanResult.Success;
+            }
+            catch (FileNotFoundException e)
+            {
+                return DokanResult.FileNotFound;
             } //#TODO access denied
-
-            stream.Position = offset;
-
-            writtenBytes = buffer.Length;
-            stream.Write(buffer, 0, buffer.Length);
-            stream.Flush();
-
-
-            file.Refresh();
-            FileInformation.Length = file.Length;
-            stream.Close(); //#TODO cache via Open/Close methods
-            return DokanResult.Success;
         }
 
 
         public override long Filesize => file.Length;
+
+        public void SetLastWriteTime(DateTime wtimeValue)
+        {
+            if (writeStream != null)
+            {
+                FileInformation.LastWriteTime = wtimeValue;
+                lastWriteTimeTodo = wtimeValue;
+                return;
+            }
+
+            System.IO.File.SetLastWriteTime(file.FullName, wtimeValue);
+        }
     }
 
 

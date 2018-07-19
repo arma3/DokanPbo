@@ -105,22 +105,24 @@ namespace DokanPbo
 
         public void Cleanup(string filename, DokanFileInfo info)
         {
+            if (GetNodeFast(filename, info) is IPboFsFile file)
+                file.Close();
+            //#TODO Functions in DOKAN_OPERATIONS struct need to be thread-safe, because they are called in several threads
+            //https://dokan-dev.github.io/dokany-doc/html/
+            //Might be important for file handles we open/close. One might close in the same time another on is reading. But closing at Cleanup should be safe
         }
 
         public void CloseFile(string filename, DokanFileInfo info)
         {
-            if (GetNodeFast(filename, info) is IPboFsFile file)
-                file.Close();
+            //If the file is immediately reopened after closing. CloseFile might not be called.
+            //In that case it would be beneficial for performance to keep the handle open.
+            //Cleanup is actually what corresponds to all handles to a file being closed and gone.
+            //https://dokan-dev.github.io/dokany-doc/html/
         }
 
         public NtStatus CreateFile(string filename, FileAccess access, System.IO.FileShare share, System.IO.FileMode mode, System.IO.FileOptions options, System.IO.FileAttributes attributes, DokanFileInfo info)
         {
-            if (filename.Contains(".svn")) return DokanResult.FileNotFound;
-            if (filename.Contains(".git")) return DokanResult.FileNotFound;
-            if (filename.Contains("HEAD")) return DokanResult.FileNotFound;
-            if (filename.Contains("desktop.ini")) return DokanResult.FileNotFound;
             var node = GetNodeFast(filename, info);
-
 
             if (node == null)
             {
@@ -145,7 +147,6 @@ namespace DokanPbo
                         {
                             nodeDirectory = fileTree.MakeDirectoryWriteable(virtualFolder);
                         }
-
 
                         if (nodeDirectory is PboFsRealFolder folder)
                         {
@@ -173,16 +174,12 @@ namespace DokanPbo
                                     return DokanResult.AccessDenied;//#TODO correct result for exception type
                                 }
 
-
-                                if ((folder.path + FileNameDirect).Contains("\\\\")) Debugger.Break();
-
                                 var rlFile = new PboFsRealFile(new System.IO.FileInfo(folder.path + FileNameDirect), folder, newStream);
 
                                 folder.Children[FileNameDirectNoLeadingSlash.ToLower()] = rlFile;
                                 fileTree.AddNode(filename.ToLower(), rlFile);
                                 info.Context = rlFile;
                             }
-
 
                             return DokanResult.Success;
                         }
@@ -196,6 +193,7 @@ namespace DokanPbo
             }
 
             info.Context = node;
+            if (node is PboFsFolder && !info.IsDirectory) info.IsDirectory = true; //Dokan documentation says we need to do that.
 
             if (mode == FileMode.CreateNew) return DokanResult.FileExists;
 
@@ -235,7 +233,6 @@ namespace DokanPbo
 
             try
             {
-
                 foreach (var subfile in folder.Children.Keys.ToArray()) //Remove all Children from fileTree
                 {
                     if (folder.Children[subfile] is PboFsRealFolder)
@@ -267,7 +264,6 @@ namespace DokanPbo
             folder.parent?.Children?.Remove(folder.FileInformation.FileName.ToLower()); //Remove myself from parent
 
             return DokanResult.Success;
-
         }
 
         public NtStatus DeleteFile(string filename, DokanFileInfo info)
@@ -279,7 +275,7 @@ namespace DokanPbo
                 try
                 {
                     file.Close();
-                    System.IO.File.Delete(file.file.FullName);
+                    System.IO.File.Delete(file.GetRealPath());
                 }
                 catch (DirectoryNotFoundException e)
                 {
@@ -354,7 +350,6 @@ namespace DokanPbo
             var sourceFilenameDirect = filename.Substring(filename.LastIndexOf('\\') + 1);
             var targetFilenameDirect = newname.Substring(newname.LastIndexOf('\\') + 1);
 
-
             switch (sourceNode)
             {
                 case null:
@@ -372,7 +367,7 @@ namespace DokanPbo
                     fileTree.AddNode(newname, file);
                     fileTree.DeleteNode(filename);
 
-                    System.IO.File.Move(file.file.FullName, fileTree.writeableDirectory + newname);
+                    System.IO.File.Move(file.GetRealPath(), fileTree.writeableDirectory + newname);
 
                     file.file = new FileInfo(fileTree.writeableDirectory + newname);
 
@@ -404,9 +399,6 @@ namespace DokanPbo
                     }
 
                     moveNodesRecursive(folder, filename);
-
-
-
 
                     return DokanResult.Success;
                 default:
@@ -469,7 +461,7 @@ namespace DokanPbo
 
             if (node is PboFsRealFile file)
             {
-                System.IO.File.SetAttributes(file.file.FullName, attr);
+                System.IO.File.SetAttributes(file.GetRealPath(), attr);
                 file.FileInformation.Attributes = attr;
                 return DokanResult.Success;
             }
@@ -492,13 +484,13 @@ namespace DokanPbo
             {
                 if (ctime != null)
                 {
-                    System.IO.File.SetCreationTime(file.file.FullName, ctime.Value);
+                    System.IO.File.SetCreationTime(file.GetRealPath(), ctime.Value);
                     file.FileInformation.CreationTime = ctime.Value;
                 }
                    
                 if (atime != null)
                 {
-                    System.IO.File.SetLastAccessTime(file.file.FullName, atime.Value);
+                    System.IO.File.SetLastAccessTime(file.GetRealPath(), atime.Value);
                     file.FileInformation.LastAccessTime = atime.Value;
                 }
                     
@@ -514,19 +506,19 @@ namespace DokanPbo
             {
                 if (ctime != null)
                 {
-                    System.IO.Directory.SetCreationTime(folder.path, ctime.Value);
+                    System.IO.Directory.SetCreationTime(folder.GetRealPath(), ctime.Value);
                     folder.FileInformation.CreationTime = ctime.Value;
                 }
 
                 if (atime != null)
                 {
-                    System.IO.Directory.SetLastAccessTime(folder.path, atime.Value);
+                    System.IO.Directory.SetLastAccessTime(folder.GetRealPath(), atime.Value);
                     folder.FileInformation.LastAccessTime = atime.Value;
                 }
 
                 if (wtime != null)
                 {
-                    System.IO.Directory.SetLastWriteTime(folder.path, wtime.Value);
+                    System.IO.Directory.SetLastWriteTime(folder.GetRealPath(), wtime.Value);
                     folder.FileInformation.LastWriteTime = wtime.Value;
                 }
 

@@ -15,12 +15,13 @@ namespace DokanPbo
         private Dictionary<string, IPboFsNode> fileTreeLookup;
 
         //The directory all non-virtual files are stored in.
-        public string writeableDirectory;
+        public readonly string writeableDirectory;
 
         public PboFSTree(ArchiveManager archiveManager, string writeableDirectory)
         {
             this.archiveManager = archiveManager;
             this.writeableDirectory = writeableDirectory;
+
             Console.WriteLine("DokanPbo writeableDirectory is " + writeableDirectory);
 
             CreateFileTree();
@@ -74,10 +75,10 @@ namespace DokanPbo
                 currentPath += "\\" + element.ToLower();
 
                 var currentDirectoryNode = NodeForPath(currentPath) as PboFsFolder;
-                if (currentDirectoryNode == null) Debugger.Break();
+                //if (currentDirectoryNode == null) Debugger.Break();
 
                 string currentDirectoryName = currentDirectoryNode.FileInformation.FileName;
-                if (currentDirectoryName != element) Debugger.Break();
+                //if (currentDirectoryName != element) Debugger.Break();
 
                 if (currentDirectoryNode is PboFsRealFolder) continue; //already writeable
 

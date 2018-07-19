@@ -53,7 +53,7 @@ namespace DokanPbo
             parent = inputParent;
             FileInformation = new DokanNet.FileInformation()
             {
-                Attributes = System.IO.FileAttributes.Directory,// | FileAttributes.ReadOnly | FileAttributes.Temporary,
+                Attributes = System.IO.FileAttributes.Directory | FileAttributes.Temporary | FileAttributes.Archive,
                 FileName = name,
                 LastAccessTime = DateTime.Now,
                 LastWriteTime = DateTime.Now,
@@ -72,7 +72,7 @@ namespace DokanPbo
             var fileTimestamp = new DateTime(1970, 1, 1, 0, 0, 0, 0).ToLocalTime().AddSeconds(file.TimeStamp);
             FileInformation = new DokanNet.FileInformation()
             {
-                Attributes = System.IO.FileAttributes.Normal | FileAttributes.ReadOnly | FileAttributes.Temporary,
+                Attributes = System.IO.FileAttributes.Normal | FileAttributes.ReadOnly | FileAttributes.Temporary | FileAttributes.Archive,
                 FileName = name,
                 Length = (long)file.DataSize,
                 LastAccessTime = DateTime.Now,
@@ -178,6 +178,28 @@ namespace DokanPbo
         //In case someone tries to set lastWriteTime while we have a Write stream open.
         private DateTime? lastWriteTimeTodo;
 
+        public PboFsRealFile(System.IO.FileInfo inputFile, PboFsFolder inputParent) : base()
+        {
+            file = inputFile;
+            parent = inputParent;
+
+            FileInformation = new DokanNet.FileInformation()
+            {
+                Attributes = file.Attributes,
+                FileName = file.Name,
+                Length = file.Length,
+                LastAccessTime = file.LastAccessTime,
+                LastWriteTime = file.LastWriteTime,
+                CreationTime = file.CreationTime,
+            };
+        }
+
+        public PboFsRealFile(System.IO.FileInfo inputFile, PboFsFolder inputParent, System.IO.FileStream writeableStream) : this(inputFile, inputParent)
+        {
+            writeStream = writeableStream;
+        }
+
+
         //Might throw FileNotFoundException
         private System.IO.FileStream OpenStream(bool write)
         {
@@ -234,27 +256,6 @@ namespace DokanPbo
             if (lastWriteTimeTodo != null)
                 SetLastWriteTime(lastWriteTimeTodo.Value);
             lastWriteTimeTodo = null;
-        }
-
-        public PboFsRealFile(System.IO.FileInfo inputFile, PboFsFolder inputParent) : base()
-        {
-            file = inputFile;
-            parent = inputParent;
-
-            FileInformation = new DokanNet.FileInformation()
-            {
-                Attributes = file.Attributes,
-                FileName = file.Name,
-                Length = file.Length,
-                LastAccessTime = file.LastAccessTime,
-                LastWriteTime = file.LastWriteTime,
-                CreationTime = file.CreationTime,
-            };
-        }
-
-        public PboFsRealFile(System.IO.FileInfo inputFile, PboFsFolder inputParent, System.IO.FileStream writeableStream) : this(inputFile, inputParent)
-        {
-            writeStream = writeableStream;
         }
 
         public override NtStatus ReadFile(byte[] buffer, out int readBytes, long offset)
@@ -343,7 +344,7 @@ namespace DokanPbo
                 return;
             }
 
-            System.IO.File.SetLastWriteTime(file.FullName, wtimeValue);
+            System.IO.File.SetLastWriteTime(GetRealPath(), wtimeValue);
         }
 
         public void Flush()

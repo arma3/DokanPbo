@@ -4,7 +4,9 @@ using DokanNet;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using DokanNet.Logging;
+using DokanPbo;
 
 namespace DokanPbo
 {
@@ -49,9 +51,33 @@ namespace DokanPbo
     internal class Program
     {
 
+        //https://social.msdn.microsoft.com/Forums/vstudio/en-US/707e9ae1-a53f-4918-8ac4-62a1eddb3c4a/detecting-console-application-exit-in-c
+        [DllImport("Kernel32")]
+        public static extern bool SetConsoleCtrlHandler(HandlerRoutine Handler, bool Add);
+
+        // A delegate type to be used as the handler routine
+        // for SetConsoleCtrlHandler.
+        public delegate bool HandlerRoutine(CtrlTypes CtrlType);
+
+        // An enumerated type for the control messages
+        // sent to the handler routine.
+        public enum CtrlTypes
+        {
+        }
+
+        private static bool ConsoleCtrlCheck(CtrlTypes ctrlType)
+        {
+            if (deleteTempDirOnClose != null)
+                Directory.Delete(deleteTempDirOnClose, true);
+            return true;
+        }
+
+        private static string deleteTempDirOnClose;
+
+
+
 #if DEBUG
-        //static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.StderrOutput | DokanOptions.FixedDrive;
-        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.FixedDrive;
+        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.StderrOutput | DokanOptions.FixedDrive;
 #else
         static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.FixedDrive;
 #endif
@@ -73,13 +99,17 @@ namespace DokanPbo
                 try
                 {
                     Console.WriteLine("DokanPbo booting...");
-                    bool writeAbleIsTemporary = options.WriteableDirectory == null;
 
-                    if (writeAbleIsTemporary)
+                    if (options.WriteableDirectory == null)
                     {
+                        Console.WriteLine("Creating temporary write directory...");
                         options.WriteableDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
                         //#TODO can throw exception and die if it creates a existing folder by accident
                         Directory.CreateDirectory(options.WriteableDirectory);
+
+                        //Need to register handler to catch console exit to delete directory at end
+                        SetConsoleCtrlHandler(ConsoleCtrlCheck, true);
+                        deleteTempDirOnClose = options.WriteableDirectory;
                     }
 
                     if (!Directory.Exists(options.WriteableDirectory))
@@ -96,10 +126,7 @@ namespace DokanPbo
 #else
                     ILogger logger = new NullLogger();
 #endif
-                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS, logger);
-                    if (writeAbleIsTemporary) 
-                        Directory.Delete(options.WriteableDirectory, true);
-
+                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS,8, logger);
                     Console.WriteLine("Success");
                 }
                 catch (DokanException ex)
@@ -107,6 +134,11 @@ namespace DokanPbo
                     Console.WriteLine("Error: " + ex.Message);
                 }
             }
+        }
+
+        private static void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        {
+            throw new NotImplementedException();
         }
     }
 }

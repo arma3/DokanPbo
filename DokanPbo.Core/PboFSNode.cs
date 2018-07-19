@@ -14,12 +14,12 @@ namespace DokanPbo
         public FileInformation FileInformation;
     }
 
-    public abstract class IPboFSFolder : IPboFsNode
+    public abstract class IPboFsFolder : IPboFsNode
     {
 
     }
 
-    public abstract class IPboFSFile : IPboFsNode
+    public abstract class IPboFsFile : IPboFsNode
     {
         public abstract NtStatus ReadFile(byte[] buffer, out int readBytes, long offset);
         
@@ -36,13 +36,21 @@ namespace DokanPbo
         public abstract long Filesize { get; }
     }
 
-    public class PboFSFolder : IPboFSFolder
+    public interface IPboFsRealObject
     {
+        string GetRealPath();
+    }
+
+
+    public class PboFsFolder : IPboFsFolder
+    {
+        public PboFsFolder parent;
         public Dictionary<string, IPboFsNode> Children;
 
-        public PboFSFolder(string name) : base()
+        public PboFsFolder(string name, PboFsFolder inputParent) : base()
         {
             Children = new Dictionary<string, IPboFsNode>();
+            parent = inputParent;
             FileInformation = new DokanNet.FileInformation()
             {
                 Attributes = System.IO.FileAttributes.Directory,// | FileAttributes.ReadOnly | FileAttributes.Temporary,
@@ -54,11 +62,11 @@ namespace DokanPbo
         }
     }
 
-    public class PboFSFile : IPboFSFile
+    public class PboFsFile : IPboFsFile
     {
         public FileEntry File;
 
-        public PboFSFile(string name, FileEntry file) : base()
+        public PboFsFile(string name, FileEntry file) : base()
         {
             File = file;
             var fileTimestamp = new DateTime(1970, 1, 1, 0, 0, 0, 0).ToLocalTime().AddSeconds(file.TimeStamp);
@@ -96,11 +104,11 @@ namespace DokanPbo
         public override long Filesize => (long) File.DataSize;
     }
 
-    public class PboFSDebinarizedFile : PboFSFile
+    public class PboFsDebinarizedFile : PboFsFile
     {
         public System.IO.Stream debinarizedStream = null;
 
-        public PboFSDebinarizedFile(string name, FileEntry file) : base(name, file)
+        public PboFsDebinarizedFile(string name, FileEntry file) : base(name, file)
         {
         }
 
@@ -137,23 +145,33 @@ namespace DokanPbo
         public override long Filesize => debinarizedStream?.Length ?? base.Filesize;
     }
 
-    public class PboFSRealFolder : PboFSFolder
+    public class PboFsRealFolder : PboFsFolder, IPboFsRealObject
     {
-        public PboFSFolder parent;
         public string path = null;
 
-        public PboFSRealFolder(string name, string inputPath, PboFSFolder inputParent) : base(name)
+        public PboFsRealFolder(string name, string inputPath, PboFsFolder inputParent) : base(name, inputParent)
         {
             path = inputPath;
-            parent = inputParent;
-            FileInformation.Attributes = System.IO.FileAttributes.Directory;
+
+            var dirInfo = new DirectoryInfo(path);
+            FileInformation.Attributes = dirInfo.Attributes;
+            FileInformation.CreationTime = dirInfo.CreationTime;
+            FileInformation.LastWriteTime = dirInfo.LastWriteTime;
+            FileInformation.LastWriteTime = dirInfo.LastWriteTime;
+
+        }
+
+        public string GetRealPath()
+        {
+            return path;
         }
     }
 
-    public class PboFSRealFile : IPboFSFile
+    public class PboFsRealFile : IPboFsFile, IPboFsRealObject
     {
-        public PboFSFolder parent;
+        public PboFsFolder parent;
         public System.IO.FileInfo file;
+        private bool? wantsOpenWrite;
         private System.IO.FileStream readStream = null;
         private System.IO.FileStream writeStream = null;
 
@@ -163,6 +181,7 @@ namespace DokanPbo
         //Might throw FileNotFoundException
         private System.IO.FileStream OpenStream(bool write)
         {
+            //Console.WriteLine("OpenActual " + write + " " + file.FullName);
             return file.Open(FileMode.Open, write ? FileAccess.ReadWrite : FileAccess.Read, FileShare.ReadWrite);
         }
 
@@ -173,31 +192,43 @@ namespace DokanPbo
             if (writeStream != null)
                 return (writeStream, true); //writeStream can read and write
 
-            return write ? (writeStream ?? OpenStream(true), writeStream != null) : (readStream ?? OpenStream(false), readStream != null);
+            if (!write && readStream != null)
+                return (readStream, true);
+
+            if (wantsOpenWrite != null) //Open stream and keep open till Close()
+            {
+                if (wantsOpenWrite.Value)
+                {
+                    writeStream = OpenStream(true);
+                    return (writeStream, true);
+                }
+                else
+                {
+                    readStream = OpenStream(false);
+                    return (readStream, true);
+                }
+
+            }
+
+            return write ? (OpenStream(true), false) : (OpenStream(false), false);
         }
 
         public override NtStatus Open(bool write)
         {
-            try
-            {
-                var stream = OpenStream(write);
-                if (write)
-                    writeStream = stream;
-                else
-                    readStream = stream;
-                return NtStatus.Success;
-            }
-            catch (FileNotFoundException e)
-            {
-                return DokanResult.FileNotFound;
-            }
+            wantsOpenWrite = write;
+            //Console.WriteLine("OpenSet " + write + " " + file.FullName);
+            return NtStatus.Success;
         }
 
         public override void Close()
         {
+            if (!IsOpen()) return;
+
+            //Console.WriteLine("Close " + file.FullName);
+
             writeStream?.Flush();
             writeStream?.Close();
-            writeStream?.Dispose();
+            writeStream?.Dispose(); //Might want to only dispose unmanaged resources aka the file handle https://msdn.microsoft.com/en-us/library/fy2eke69(v=vs.110).aspx
             writeStream = null;
 
             readStream?.Flush();
@@ -209,7 +240,7 @@ namespace DokanPbo
             lastWriteTimeTodo = null;
         }
 
-        public PboFSRealFile(System.IO.FileInfo inputFile, PboFSFolder inputParent) : base()
+        public PboFsRealFile(System.IO.FileInfo inputFile, PboFsFolder inputParent) : base()
         {
             file = inputFile;
             parent = inputParent;
@@ -225,8 +256,9 @@ namespace DokanPbo
             };
         }
 
-        public PboFSRealFile(System.IO.FileInfo inputFile, PboFSFolder inputParent, System.IO.FileStream writeableStream) : this(inputFile, inputParent)
+        public PboFsRealFile(System.IO.FileInfo inputFile, PboFsFolder inputParent, System.IO.FileStream writeableStream) : this(inputFile, inputParent)
         {
+            //Console.WriteLine("OpenWStream " + file.FullName);
             writeStream = writeableStream;
         }
 
@@ -323,6 +355,16 @@ namespace DokanPbo
         {
             writeStream?.Flush();
             readStream?.Flush();
+        }
+
+        public string GetRealPath()
+        {
+            return file.FullName;
+        }
+
+        public bool IsOpen()
+        {
+            return writeStream != null || readStream != null;
         }
     }
 

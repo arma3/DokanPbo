@@ -28,28 +28,10 @@ namespace DokanPbo
                 }
                 catch (DirectoryNotFoundException e)
                 {
-                    //#TODO log warning
+                    Console.WriteLine(e.Message);
                 }
             }
         }
-
-        public Stream ReadStream(string filePath)
-        {
-            FileEntry file = null;
-
-            if (FilePathToFileEntry.TryGetValue(filePath, out file))
-            {
-                return file.Extract();
-            }
-
-            return null;
-        }
-
-        public Stream ReadStream(FileEntry file)
-        {
-            return file.Extract();
-        }
-
 
         private void ReadPboFiles(string[] filePaths)
         {

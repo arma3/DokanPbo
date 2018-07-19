@@ -70,7 +70,6 @@ namespace DokanPbo
             var options = new Options();
             if (CommandLine.Parser.Default.ParseArguments(args, options))
             {
-                Dokan.RemoveMountPoint(options.MountDirectory); //#TODO remove this
                 try
                 {
                     Console.WriteLine("DokanPbo booting...");
@@ -81,6 +80,12 @@ namespace DokanPbo
                         options.WriteableDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
                         //#TODO can throw exception and die if it creates a existing folder by accident
                         Directory.CreateDirectory(options.WriteableDirectory);
+                    }
+
+                    if (!Directory.Exists(options.WriteableDirectory))
+                    {
+                        Console.WriteLine("FATAL Writeable Directory doesn't exist: " + options.WriteableDirectory);
+                        Console.ReadKey();
                     }
 
                     ArchiveManager archiveManager = new ArchiveManager(options.PboDirectories);

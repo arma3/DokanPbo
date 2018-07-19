@@ -181,7 +181,6 @@ namespace DokanPbo
         //Might throw FileNotFoundException
         private System.IO.FileStream OpenStream(bool write)
         {
-            //Console.WriteLine("OpenActual " + write + " " + file.FullName);
             return file.Open(FileMode.Open, write ? FileAccess.ReadWrite : FileAccess.Read, FileShare.ReadWrite);
         }
 
@@ -216,15 +215,12 @@ namespace DokanPbo
         public override NtStatus Open(bool write)
         {
             wantsOpenWrite = write;
-            //Console.WriteLine("OpenSet " + write + " " + file.FullName);
             return NtStatus.Success;
         }
 
         public override void Close()
         {
             if (!IsOpen()) return;
-
-            //Console.WriteLine("Close " + file.FullName);
 
             writeStream?.Flush();
             writeStream?.Close();
@@ -258,7 +254,6 @@ namespace DokanPbo
 
         public PboFsRealFile(System.IO.FileInfo inputFile, PboFsFolder inputParent, System.IO.FileStream writeableStream) : this(inputFile, inputParent)
         {
-            //Console.WriteLine("OpenWStream " + file.FullName);
             writeStream = writeableStream;
         }
 

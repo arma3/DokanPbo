@@ -163,21 +163,8 @@ namespace DokanPbo
                 }
             }
 
-            var rlFile = new PboFsRealFile(new System.IO.FileInfo("X:\\bintreee.cpp"), this.root);
-            
-            //#TODO check if file exists
-            this.root.Children["bintreee.cpp"] = rlFile;
-            this.fileTreeLookup["\\bintreee.cpp"] = rlFile;
-
             //Interweave writeableDirectory
-            WalkDirectoryTree(new System.IO.DirectoryInfo(writeableDirectory), "", this.root, true);
-
-            ////#TODO check if file exists
-            //
-            //var folderR = new PboFsRealFolder("ace", "I:\\ACE3\\", fileTreeLookup["\\z"] as PboFsFolder);
-            //fileTreeLookup["\\z\\ace"] = folderR;
-            //(fileTreeLookup["\\z"] as PboFsFolder).Children["ace"] = folderR;
-            //WalkDirectoryTree(new System.IO.DirectoryInfo("I:\\ACE3\\"), "\\z\\ace", folderR, true);
+            LinkRealDirectory(new System.IO.DirectoryInfo(writeableDirectory), "", this.root, true);
         }
 
         void injectFile(FileInfo file, PboFsFolder rootDirectory, string fileFullRealPath)
@@ -193,7 +180,7 @@ namespace DokanPbo
             this.fileTreeLookup[fileFullRealPath] = newFile;
         }
 
-        void WalkDirectoryTree(System.IO.DirectoryInfo root, string currentPath, PboFsFolder rootDir, bool first)
+        void LinkRealDirectory(System.IO.DirectoryInfo root, string currentPath, PboFsFolder rootDir, bool first)
         {
             System.IO.FileInfo[] files = null;
             System.IO.DirectoryInfo[] subDirs = null;
@@ -209,12 +196,11 @@ namespace DokanPbo
                 // than the application provides.
                 catch (UnauthorizedAccessException e)
                 {
-                    //#TODO you have no permission to access files
+                    Console.WriteLine(e);
                 }
-
                 catch (System.IO.DirectoryNotFoundException e)
                 {
-                    return;
+                    Console.WriteLine(e);
                 }
 
                 if (files == null) return;
@@ -229,7 +215,7 @@ namespace DokanPbo
                 foreach (var dirInfo in subDirs)
                 {
                     // Resursive call for each subdirectory.
-                    WalkDirectoryTree(dirInfo, currentPath, rootDir, false);
+                    LinkRealDirectory(dirInfo, currentPath, rootDir, false);
                 }
 
                 return;
@@ -272,12 +258,12 @@ namespace DokanPbo
             // than the application provides.
             catch (UnauthorizedAccessException e)
             {
-                //#TODO you have no permission to access files
+                Console.WriteLine(e);
             }
 
             catch (System.IO.DirectoryNotFoundException e)
             {
-                return;
+                Console.WriteLine(e);
             }
 
 
@@ -293,7 +279,7 @@ namespace DokanPbo
             foreach (var dirInfo in subDirs)
             {
                 // Resursive call for each subdirectory.
-                WalkDirectoryTree(dirInfo, currentPath, currentFolder, false);
+                LinkRealDirectory(dirInfo, currentPath, currentFolder, false);
             }
         }
 

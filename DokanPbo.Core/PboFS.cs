@@ -197,7 +197,7 @@ namespace DokanPbo
 
             info.Context = node;
 
-            //if (mode == FileMode.CreateNew) return DokanResult.FileExists;
+            if (mode == FileMode.CreateNew) return DokanResult.FileExists;
 
             if (access == FileAccess.Delete)
             {
@@ -259,9 +259,7 @@ namespace DokanPbo
             }
             catch (Exception e)
             {
-                //might be still in use 
-                //    or access denied. Handle both differently. Also never throw "Error" if possible. That displays faulty message in windows
-                return DokanResult.Error;
+                return DokanResult.NotImplemented;
             }
 
             DeleteNode(filename); //Remove myself
@@ -343,13 +341,13 @@ namespace DokanPbo
 
             if (nodeSourceDirectory == null)
             {
-                Console.WriteLine("DokanPBO::MoveFile failed because source directory doesn't exist");
+                Console.WriteLine("DokanPBO::MoveFile failed because source directory doesn't exist: " + sourceDirectory);
                 return DokanResult.FileNotFound;
             }
 
             if (nodeTargetDirectory == null)
             {
-                Console.WriteLine("DokanPBO::MoveFile failed because target directory doesn't exist");
+                Console.WriteLine("DokanPBO::MoveFile failed because target directory doesn't exist: " + targetDirectory);
                 return DokanResult.FileNotFound;
             }
 
@@ -414,8 +412,6 @@ namespace DokanPbo
                 default:
                     return DokanResult.NotImplemented; //Source node is immovable
             }
-
-            return DokanResult.Error;
         }
 
         public NtStatus ReadFile(string filename, byte[] buffer, out int readBytes, long offset, DokanFileInfo info)
@@ -555,7 +551,7 @@ namespace DokanPbo
 
         public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalBytes, out long totalFreeBytes, DokanFileInfo info)
         {
-            System.IO.DriveInfo drive = new System.IO.DriveInfo(fileTree.writeableDirectory);
+            var drive = new DriveInfo(fileTree.writeableDirectory);
 
             freeBytesAvailable = drive.AvailableFreeSpace;
             totalBytes = this.archiveManager.TotalBytes;

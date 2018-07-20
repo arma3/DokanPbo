@@ -592,7 +592,7 @@ namespace DokanPbo
 
         public NtStatus EnumerateNamedStreams(string fileName, IntPtr enumContext, out string streamName, out long streamSize, DokanFileInfo info)
         {
-            streamName = String.Empty;
+            streamName = string.Empty;
             streamSize = 0;
             return DokanResult.NotImplemented;
         }

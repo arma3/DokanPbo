@@ -120,7 +120,7 @@ namespace DokanPbo
 
             foreach (string filePath in this.archiveManager.FilePathToFileEntry.Keys)
             {
-                if (filePath.StartsWith(excludePrefix)) continue;
+                if (excludePrefix != null && filePath.StartsWith(excludePrefix)) continue;
                 FileEntry file = this.archiveManager.FilePathToFileEntry[filePath];
 
                 PboFsFolder currentFolder = root;

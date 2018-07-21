@@ -360,7 +360,8 @@ namespace DokanPbo
 
             fileInfo = new FileInformation
             {
-                FileName = filename,
+                FileName = filename, //In GetFileInformation this is only used to get the hash of the string which is returned as the INODE.
+                //Everywhere else FileName has to be the actual filename but not here. https://github.com/dokan-dev/dokan-dotnet/issues/196
                 Attributes = node.FileInformation.Attributes,
                 CreationTime = node.FileInformation.CreationTime,
                 LastAccessTime = node.FileInformation.LastAccessTime,

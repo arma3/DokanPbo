@@ -358,7 +358,15 @@ namespace DokanPbo
                 return DokanResult.FileNotFound;
             }
 
-            fileInfo = node.FileInformation;
+            fileInfo = new FileInformation
+            {
+                FileName = filename,
+                Attributes = node.FileInformation.Attributes,
+                CreationTime = node.FileInformation.CreationTime,
+                LastAccessTime = node.FileInformation.LastAccessTime,
+                LastWriteTime = node.FileInformation.LastWriteTime,
+                Length = node.FileInformation.Length
+            };
             return DokanResult.Success;
         }
 

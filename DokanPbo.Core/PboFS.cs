@@ -40,7 +40,6 @@ namespace DokanPbo
         //#TODO only used by the PboFSDebinarizedConfig. Could move this to seperate file.
         public static System.IO.Stream DeRapConfig(System.IO.Stream input, long fileSize, byte[] buffer)
         {
-
             var tempFileName = System.IO.Path.GetTempFileName();
             var file = System.IO.File.Create(tempFileName);
 
@@ -120,12 +119,55 @@ namespace DokanPbo
             //https://dokan-dev.github.io/dokany-doc/html/
         }
 
+
+        private PboFsFolder CreateOrFindDirectoryRecursive(string fullPath)
+        {
+            var node = FindNode(fullPath);
+            if (node != null) return node as PboFsFolder;
+
+            var currentPath = "\\";
+            var splitPath = fullPath.Remove(0,1).Split('\\');
+
+            PboFsFolder currentFolder = FindNode("\\") as PboFsFolder;//get root node
+
+            // Create folder for all sub paths
+            foreach (var folderName in splitPath)
+            {
+                currentPath += folderName;
+
+                PboFsFolder folder = null;
+                var foundNode = FindNode(currentPath);
+                if (foundNode == null)
+                {
+                    folder = new PboFsFolder(folderName, currentFolder);
+                    fileTree.AddNode(currentPath, folder);
+                }
+                else
+                {
+                    folder = (PboFsFolder)foundNode;
+                }
+
+                if (!currentFolder.Children.ContainsKey(folderName.ToLower()))
+                {
+                    currentFolder.Children[folderName.ToLower()] = currentFolder = folder;
+                }
+                else
+                {
+                    currentFolder = (PboFsFolder)currentFolder.Children[folderName.ToLower()];
+                }
+
+                currentPath += "\\";
+            }
+            return currentFolder;
+        }
+
         public NtStatus CreateFile(string filename, FileAccess access, System.IO.FileShare share, System.IO.FileMode mode, System.IO.FileOptions options, System.IO.FileAttributes attributes, DokanFileInfo info)
         {
             var node = GetNodeFast(filename, info);
 
             if (node == null)
             {
+                if (access == FileAccess.Delete) return DokanResult.Success;//already gone
                 switch (mode)
                 {
                     case FileMode.CreateNew:
@@ -137,7 +179,7 @@ namespace DokanPbo
                         if (Directory.Length == 0)
                             Directory = "\\";
 
-                        var nodeDirectory = FindNode(Directory);
+                        var nodeDirectory = CreateOrFindDirectoryRecursive(Directory);
 
                         //Filename without folder path
                         var FileNameDirect = filename.Substring(filename.LastIndexOf('\\'));
@@ -364,12 +406,14 @@ namespace DokanPbo
                     nodeTargetDirectory.Children.Add(targetFilenameDirect.ToLower(), nodeSourceDirectory.Children[sourceFilenameDirect.ToLower()]);
                     nodeSourceDirectory.Children.Remove(sourceFilenameDirect.ToLower());
 
-                    fileTree.AddNode(newname, file);
-                    fileTree.DeleteNode(filename);
+
+                    fileTree.AddNode(PrefixedFilename(newname), file);
+                    fileTree.DeleteNode(PrefixedFilename(filename));
 
                     System.IO.File.Move(file.GetRealPath(), fileTree.writeableDirectory + newname);
 
                     file.file = new FileInfo(fileTree.writeableDirectory + newname);
+                    file.FileInformation.FileName = targetFilenameDirect;
 
                     return DokanResult.Success;
                 case PboFsRealFolder folder:
@@ -380,11 +424,12 @@ namespace DokanPbo
                     nodeTargetDirectory.Children.Add(targetFilenameDirect.ToLower(), nodeSourceDirectory.Children[sourceFilenameDirect.ToLower()]);
                     nodeSourceDirectory.Children.Remove(sourceFilenameDirect.ToLower());
 
-                    fileTree.AddNode(newname, folder);
-                    fileTree.DeleteNode(filename);
+                    fileTree.AddNode(PrefixedFilename(newname), folder);
+                    fileTree.DeleteNode(PrefixedFilename(filename));
 
                     System.IO.Directory.Move(folder.path, fileTree.writeableDirectory + newname);
                     folder.path = fileTree.writeableDirectory + newname;
+                    folder.FileInformation.FileName = targetFilenameDirect;
 
                     void moveNodesRecursive(PboFsFolder folderIn, string basePath)
                     {
@@ -599,13 +644,13 @@ namespace DokanPbo
 
         public NtStatus FindStreams(string fileName, out IList<FileInformation> streams, DokanFileInfo info)
         {
-            streams = new FileInformation[0];
+            streams = null;
             return DokanResult.NotImplemented;
         }
 
         public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files, DokanFileInfo info)
         {
-            files = new FileInformation[0];
+            files = null;
             return DokanResult.NotImplemented;
         }
 

@@ -139,6 +139,7 @@ namespace DokanPbo
 
             var derapStream = PboFS.DeRapConfig(base.GetFileStream(), base.Filesize, buffer);
             debinarizedStream = derapStream;
+            FileInformation.Length = derapStream.Length;
             return derapStream;
         }
 

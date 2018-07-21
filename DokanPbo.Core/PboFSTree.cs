@@ -74,7 +74,7 @@ namespace DokanPbo
             string currentPath = "";
             foreach (var element in pathElements)
             {
-                currentPath += "\\" + element.ToLower();
+                currentPath += "\\" + element;
 
                 var currentDirectoryNode = NodeForPath(currentPath) as PboFsFolder;
                 //if (currentDirectoryNode == null) Debugger.Break();
@@ -86,14 +86,14 @@ namespace DokanPbo
 
                 try
                 {
-                    if (!Directory.Exists(writeableDirectory + "\\" + currentDirectoryName))
-                        Directory.CreateDirectory(writeableDirectory + "\\" + currentDirectoryName);
+                    if (!Directory.Exists(writeableDirectory + currentPath))
+                        Directory.CreateDirectory(writeableDirectory + currentPath);
 
 
-                    var folderR = new PboFsRealFolder(currentDirectoryName, writeableDirectory + "\\" + currentDirectoryName, currentDirectoryNode.parent);
+                    var folderR = new PboFsRealFolder(currentDirectoryName, writeableDirectory + currentPath, currentDirectoryNode.parent);
                     folderR.Children = currentDirectoryNode.Children;
                     folderR.parent.Children[currentDirectoryName.ToLower()] = folderR;
-                    fileTreeLookup[currentPath] = folderR;
+                    fileTreeLookup[currentPath.ToLower()] = folderR;
                     //Done.
 
                 }

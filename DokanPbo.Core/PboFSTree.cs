@@ -16,11 +16,13 @@ namespace DokanPbo
 
         //The directory all non-virtual files are stored in.
         public readonly string writeableDirectory;
+        public readonly string excludePrefix;
 
-        public PboFSTree(ArchiveManager archiveManager, string writeableDirectory)
+        public PboFSTree(ArchiveManager archiveManager, string writeableDirectory, string excludePrefix)
         {
             this.archiveManager = archiveManager;
             this.writeableDirectory = writeableDirectory;
+            this.excludePrefix = excludePrefix;
 
             Console.WriteLine("DokanPbo writeableDirectory is " + writeableDirectory);
 
@@ -118,6 +120,7 @@ namespace DokanPbo
 
             foreach (string filePath in this.archiveManager.FilePathToFileEntry.Keys)
             {
+                if (filePath.StartsWith(excludePrefix)) continue;
                 FileEntry file = this.archiveManager.FilePathToFileEntry[filePath];
 
                 PboFsFolder currentFolder = root;

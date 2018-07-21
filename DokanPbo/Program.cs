@@ -24,6 +24,10 @@ namespace DokanPbo
           HelpText = "Prefix used to filter PBO paths.")]
         public string Prefix { get; set; }
 
+        [Option("excludePrefix",
+            HelpText = "Prefix used to exclude PBO files.")]
+        public string ExcludePrefix { get; set; }
+
         [Option('u', "unmount", Required = false,
           HelpText = "Drive or directory to unmount.")]
         public string UnmountDirectory { get; set; }
@@ -119,7 +123,7 @@ namespace DokanPbo
                     }
 
                     ArchiveManager archiveManager = new ArchiveManager(options.PboDirectories);
-                    PboFSTree fileTree = new PboFSTree(archiveManager, options.WriteableDirectory);
+                    PboFSTree fileTree = new PboFSTree(archiveManager, options.WriteableDirectory, options.ExcludePrefix);
                     PboFS pboFS = new PboFS(fileTree, archiveManager, options.Prefix);
 #if DEBUG
                     ILogger logger = new NullLogger(); //null;

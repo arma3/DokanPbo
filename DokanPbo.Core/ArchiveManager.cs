@@ -38,6 +38,11 @@ namespace DokanPbo
             return null;
         }
 
+        public Stream ReadStream(FileEntry file)
+        {
+            return file.Extract();
+        }
+
         private void ReadPboFiles(string[] filePaths)
         {
             foreach(var filePath in filePaths)

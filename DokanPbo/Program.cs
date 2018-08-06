@@ -68,9 +68,9 @@ namespace DokanPbo
                     PboFSTree fileTree = new PboFSTree(archiveManager);
                     PboFS pboFS = new PboFS(fileTree, archiveManager, options.Prefix);
 #if DEBUG
-                    var logger = null;
+                    ILogger logger = null;
 #else
-                    var logger = new NullLogger();
+                    ILogger logger = new NullLogger();
 #endif
                     pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS, logger);
                     Console.WriteLine("Success");

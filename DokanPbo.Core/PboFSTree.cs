@@ -96,7 +96,7 @@ namespace DokanPbo
                 this.fileTreeLookup[filePath] = fileNode;
                 if (hasCfgConvert && fileName == "config.bin")
                 {
-                    var derapNode = new PboFSDummyFile("config.cpp", archive, file);
+                    var derapNode = new PboFSDummyFile("config.cpp", file);
                     currentFolder.Children["config.cpp"] = derapNode;
                     this.fileTreeLookup[filePath.Replace("config.bin", "config.cpp")] = derapNode;
                 }

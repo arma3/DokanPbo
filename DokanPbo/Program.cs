@@ -130,7 +130,7 @@ namespace DokanPbo
 #else
                     ILogger logger = new NullLogger();
 #endif
-                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS,8, logger);
+                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS,1, logger);
                     Console.WriteLine("Success");
                 }
                 catch (DokanException ex)

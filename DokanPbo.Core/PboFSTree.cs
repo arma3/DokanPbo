@@ -12,7 +12,7 @@ namespace DokanPbo
     {
         private ArchiveManager archiveManager;
         private PboFsRealFolder root;
-        private Dictionary<string, IPboFsNode> fileTreeLookup;
+        private HashSet<IPboFsNode> fileTreeLookup;
 
         //The directory all non-virtual files are stored in.
         public readonly string writeableDirectory;
@@ -31,7 +31,7 @@ namespace DokanPbo
 
         public IList<FileInformation> FilesForPath(string path)
         {
-            var node = this.fileTreeLookup[path];
+            this.fileTreeLookup.TryGetValue(new PboFsLookupDummy(path), out var node);
             if (node is PboFsFolder folder)
             {
                 return folder.Children.Values.Select(f => f.FileInformation).ToList();
@@ -42,12 +42,12 @@ namespace DokanPbo
 
         public FileInformation FileInfoForPath(string path)
         {
-            return this.fileTreeLookup.TryGetValue(path, out var node) ? node.FileInformation : new FileInformation();
+            return this.fileTreeLookup.TryGetValue(new PboFsLookupDummy(path), out var node) ? node.FileInformation : new FileInformation();
         }
 
         public IPboFsNode NodeForPath(string path)
         {
-            return this.fileTreeLookup.TryGetValue(path, out var node) ? node : null;
+            return this.fileTreeLookup.TryGetValue(new PboFsLookupDummy(path.ToLower()), out var node) ? node : null;
         }
 
         private List<string> GetFolderPathElements(PboFsFolder folder)
@@ -66,9 +66,9 @@ namespace DokanPbo
         }
 
 
-        public PboFsRealFolder MakeDirectoryWriteable(PboFsFolder folder)
+        public PboFsRealFolder MakeDirectoryWriteable(PboFsFolder inputFolder)
         {
-            List<string> pathElements = GetFolderPathElements(folder);
+            List<string> pathElements = GetFolderPathElements(inputFolder);
 
             pathElements.Remove("\\"); //root node is already writeable
             string currentPath = "";
@@ -77,10 +77,8 @@ namespace DokanPbo
                 currentPath += "\\" + element;
 
                 var currentDirectoryNode = NodeForPath(currentPath) as PboFsFolder;
-                //if (currentDirectoryNode == null) Debugger.Break();
 
                 string currentDirectoryName = currentDirectoryNode.FileInformation.FileName;
-                //if (currentDirectoryName != element) Debugger.Break();
 
                 if (currentDirectoryNode is PboFsRealFolder) continue; //already writeable
 
@@ -93,7 +91,8 @@ namespace DokanPbo
                     var folderR = new PboFsRealFolder(currentDirectoryName, writeableDirectory + currentPath, currentDirectoryNode.parent);
                     folderR.Children = currentDirectoryNode.Children;
                     folderR.parent.Children[currentDirectoryName.ToLower()] = folderR;
-                    fileTreeLookup[currentPath.ToLower()] = folderR;
+                    fileTreeLookup.Remove(currentDirectoryNode);
+                    fileTreeLookup.Add(folderR);
                     //Done.
 
                 }
@@ -114,8 +113,8 @@ namespace DokanPbo
         private void CreateFileTree()
         {
             this.root = new PboFsRealFolder(null, writeableDirectory, null);
-            this.fileTreeLookup = new Dictionary<string, IPboFsNode>();
-            this.fileTreeLookup["\\"] = this.root;
+            this.fileTreeLookup = new HashSet<IPboFsNode>();
+            this.fileTreeLookup.Add(this.root);
             var hasCfgConvert = PboFS.HasCfgConvert();
 
             foreach (string filePath in this.archiveManager.FilePathToFileEntry.Keys)
@@ -127,20 +126,22 @@ namespace DokanPbo
                 var currentPath = "\\";
                 var splitPath = filePath.Split('\\');
 
-                // Create folder for all sub paths
+                // Create inputFolder for all sub paths
                 for (int i = 1; i < splitPath.Length - 1; i++)
                 {
                     var folderName = splitPath[i];
                     currentPath += folderName;
 
                     PboFsFolder folder = null;
-                    if (!this.fileTreeLookup.ContainsKey(currentPath))
+                    if (!this.fileTreeLookup.Contains(new PboFsLookupDummy(currentPath)))
                     {
-                        this.fileTreeLookup[currentPath] = folder = new PboFsFolder(folderName, currentFolder);
+                        folder = new PboFsFolder(folderName, currentFolder);
+                        this.fileTreeLookup.Add(folder);
                     }
                     else
                     {
-                        folder = (PboFsFolder) this.fileTreeLookup[currentPath];
+                        fileTreeLookup.TryGetValue(new PboFsLookupDummy(currentPath), out var node);
+                        folder = node as PboFsFolder;
                     }
 
                     if (!currentFolder.Children.ContainsKey(folderName))
@@ -156,14 +157,14 @@ namespace DokanPbo
                 }
 
                 var fileName = splitPath[splitPath.Length - 1];
-                var fileNode = new PboFsFile(fileName, file);
+                var fileNode = new PboFsFile(fileName, file, currentFolder);
                 currentFolder.Children[fileName] = fileNode;
-                this.fileTreeLookup[filePath] = fileNode;
+                this.fileTreeLookup.Add(fileNode);
                 if (hasCfgConvert && fileName == "config.bin")
                 {
-                    var derapNode = new PboFsDebinarizedFile("config.cpp", file);
+                    var derapNode = new PboFsDebinarizedFile("config.cpp", file, currentFolder);
                     currentFolder.Children["config.cpp"] = derapNode;
-                    this.fileTreeLookup[filePath.Replace("config.bin", "config.cpp")] = derapNode;
+                    this.fileTreeLookup.Add(derapNode);
                 }
             }
 
@@ -173,7 +174,7 @@ namespace DokanPbo
 
         void injectFile(FileInfo file, PboFsFolder rootDirectory, string fileFullRealPath)
         {
-            if (fileTreeLookup.ContainsKey(fileFullRealPath))
+            if (fileTreeLookup.Contains(new PboFsLookupDummy(fileFullRealPath)))
             {
                 Console.WriteLine("DokanPbo::LinkRealDirectory cannot add file. It already exists. " + fileFullRealPath);
                 return;
@@ -181,7 +182,7 @@ namespace DokanPbo
 
             var newFile = new PboFsRealFile(file, rootDirectory);
             rootDirectory.Children[file.Name.ToLower()] = newFile;
-            this.fileTreeLookup[fileFullRealPath] = newFile;
+            this.fileTreeLookup.Add(newFile);
         }
 
         void LinkRealDirectory(System.IO.DirectoryInfo root, string currentPath, PboFsFolder rootDir, bool first)
@@ -191,7 +192,7 @@ namespace DokanPbo
 
             if (first)
             {
-                // First, process all the files directly under this folder
+                // First, process all the files directly under this inputFolder
                 try
                 {
                     files = root.GetFiles("*.*");
@@ -233,10 +234,11 @@ namespace DokanPbo
             if (!(rootDir is PboFsRealFolder)) rootDir = MakeDirectoryWriteable(rootDir);
             PboFsRealFolder currentFolder;
 
-            //If folder already exists make it writeable
-            if (fileTreeLookup.ContainsKey(currentPath))
+            //If inputFolder already exists make it writeable
+            fileTreeLookup.TryGetValue(new PboFsLookupDummy(currentPath), out var existingNode);
+            if (existingNode != null)
             {
-                var existingCurrentFolder = fileTreeLookup[currentPath] as PboFsFolder;
+                var existingCurrentFolder = existingNode as PboFsFolder;
                 if (existingCurrentFolder is PboFsRealFolder existingCurrentFolderReal)
                     currentFolder = existingCurrentFolderReal;
                 else
@@ -246,14 +248,14 @@ namespace DokanPbo
             {
                 currentFolder = new PboFsRealFolder(root.Name, root.FullName, rootDir);
                 rootDir.Children[root.Name.ToLower()] = currentFolder;
-                this.fileTreeLookup[currentPath] = currentFolder;
+                this.fileTreeLookup.Add(currentFolder);
             }
 
              
 
 
 
-            // First, process all the files directly under this folder
+            // First, process all the files directly under this inputFolder
             try
             {
                 files = root.GetFiles("*.*");
@@ -289,12 +291,17 @@ namespace DokanPbo
 
         public void DeleteNode(string filename)
         {
-            fileTreeLookup.Remove(filename);
+            fileTreeLookup.Remove(new PboFsLookupDummy(filename));
         }
 
-        public void AddNode(string s, IPboFsNode node)
+        public void DeleteNode(IPboFsNode node)
         {
-            fileTreeLookup[s] = node;
+            fileTreeLookup.Remove(node);
+        }
+
+        public void AddNode(IPboFsNode node)
+        {
+            fileTreeLookup.Add(node);
         }
     }
 }

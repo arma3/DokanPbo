@@ -22,25 +22,15 @@ namespace DokanPbo
 
             foreach (var folderPath in folderPaths)
             {
-                ReadPboFiles(Directory.GetFiles(folderPath, "*.pbo"));
+                try
+                {
+                    ReadPboFiles(Directory.GetFiles(folderPath, "*.pbo"));
+                }
+                catch (DirectoryNotFoundException e)
+                {
+                    Console.WriteLine(e.Message);
+                }
             }
-        }
-
-        public Stream ReadStream(string filePath)
-        {
-            FileEntry file = null;
-
-            if (FilePathToFileEntry.TryGetValue(filePath, out file))
-            {
-                return file.Extract();
-            }
-
-            return null;
-        }
-
-        public Stream ReadStream(FileEntry file)
-        {
-            return file.Extract();
         }
 
         private void ReadPboFiles(string[] filePaths)

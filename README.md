@@ -10,7 +10,7 @@ It can directly mount the folder structure inside the PBO as a Directory or Driv
 
 - Install [Dokan](https://github.com/dokan-dev/dokany/releases)
 - Compile and install DokanPbo using Visual Studio or other .NET Framework capable compiler
-  - Requires at least .NET Framework **4.7**!
+  - Requires at least .NET Framework **4.7.2**!
 
 ## Usage
 

@@ -157,7 +157,7 @@ namespace DokanPbo
             parent = inputParent;
             FileInformation = new DokanNet.FileInformation()
             {
-                Attributes = System.IO.FileAttributes.Directory | FileAttributes.Temporary | FileAttributes.Archive,
+                Attributes = System.IO.FileAttributes.Directory,
                 FileName = name,
                 LastAccessTime = DateTime.Now,
                 LastWriteTime = DateTime.Now,
@@ -177,7 +177,7 @@ namespace DokanPbo
             parent = inputParent;
             FileInformation = new DokanNet.FileInformation()
             {
-                Attributes = System.IO.FileAttributes.Normal | FileAttributes.ReadOnly | FileAttributes.Temporary | FileAttributes.Archive,
+                Attributes = System.IO.FileAttributes.Normal | FileAttributes.ReadOnly,
                 FileName = name,
                 Length = (long)file.DataSize,
                 LastAccessTime = DateTime.Now,

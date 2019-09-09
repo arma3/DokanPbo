@@ -1,4 +1,4 @@
-﻿using DokanNet;
+using DokanNet;
 using SwiftPbo;
 using System;
 using System.Collections.Generic;
@@ -277,9 +277,10 @@ namespace DokanPbo
     {
         public System.IO.FileInfo file;
         private bool? wantsOpenWrite;
-        private FileMode openMode;
+        private FileMode openMode = FileMode.Open;
         private System.IO.FileStream readStream = null;
         private System.IO.FileStream writeStream = null;
+        public bool IsOpenForWriting => writeStream != null;
 
         //In case someone tries to set lastWriteTime while we have a Write stream open.
         private DateTime? lastWriteTimeTodo;
@@ -300,6 +301,7 @@ namespace DokanPbo
             };
         }
 
+        //writeableStream is from newly created file
         public PboFsRealFile(System.IO.FileInfo inputFile, PboFsFolder inputParent, System.IO.FileStream writeableStream) : this(inputFile, inputParent)
         {
             writeStream = writeableStream;

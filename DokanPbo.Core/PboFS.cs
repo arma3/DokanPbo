@@ -97,7 +97,7 @@ namespace DokanPbo
 
         private IPboFsNode GetNodeFast(string filename, DokanFileInfo info)
         {
-            if (info.Context is IPboFsNode node)
+            if (info?.Context is IPboFsNode node)
                 return node;
             return FindNode(filename);
         }

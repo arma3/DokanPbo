@@ -22,7 +22,7 @@ namespace DokanPbo
             TotalBytes = 0;
 
             var pboList = folderPaths
-                //.AsParallel()
+                //.AsParallel() //Parallelizing this prooved not worth it with a dozen folders, but with many more it might become useful
                 .Select(folderPath =>
                 {
                     try

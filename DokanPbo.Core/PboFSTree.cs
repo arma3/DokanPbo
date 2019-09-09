@@ -47,7 +47,7 @@ namespace DokanPbo
 
         public IPboFsNode NodeForPath(string path)
         {
-            return this.fileTreeLookup.TryGetValue(new PboFsLookupDummy(path.ToLower()), out var node) ? node : null;
+            return this.fileTreeLookup.TryGetValue(new PboFsLookupDummy(path), out var node) ? node : null;
         }
 
         private List<string> GetFolderPathElements(PboFsFolder folder)

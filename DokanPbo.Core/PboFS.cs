@@ -695,15 +695,15 @@ namespace DokanPbo
         {
             if (string.IsNullOrEmpty(prefix))
             {
-                return filename.ToLower();
+                return filename;
             }
 
             if (filename == "\\")
             {
-                return this.prefix.ToLower();
+                return this.prefix;
             }
 
-            return (this.prefix + filename).ToLower();
+            return (this.prefix + filename);
         }
     }
 }

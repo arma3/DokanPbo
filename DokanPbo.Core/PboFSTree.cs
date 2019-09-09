@@ -176,8 +176,9 @@ namespace DokanPbo
         {
             if (fileTreeLookup.Contains(new PboFsLookupDummy(fileFullRealPath)))
             {
-                Console.WriteLine("DokanPbo::LinkRealDirectory cannot add file. It already exists. " + fileFullRealPath);
-                return;
+                //file from writeable directory overrides pbo file.
+                Console.WriteLine("DokanPbo::LinkRealDirectory overwriting file from PBO with real file: " + fileFullRealPath);
+                fileTreeLookup.Remove(new PboFsLookupDummy(fileFullRealPath));
             }
 
             var newFile = new PboFsRealFile(file, rootDirectory);

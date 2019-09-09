@@ -389,6 +389,7 @@ namespace DokanPbo
             catch (FileNotFoundException e)
             {
                 readBytes = 0;
+                Console.WriteLine("DokanPBO::ReadFile failed due to FileNotFoundException: " + e);
                 return DokanResult.FileNotFound;
             }
         }
@@ -416,6 +417,7 @@ namespace DokanPbo
             catch (FileNotFoundException e)
             {
                 writtenBytes = 0;
+                Console.WriteLine("DokanPBO::WriteFile failed due to FileNotFoundException: " + e);
                 return DokanResult.FileNotFound;
             } //#TODO access denied exception
         }
@@ -437,6 +439,7 @@ namespace DokanPbo
             }
             catch (FileNotFoundException e)
             {
+                Console.WriteLine("DokanPBO::SetEof failed due to FileNotFoundException: " + e);
                 return DokanResult.FileNotFound;
             } //#TODO access denied
         }

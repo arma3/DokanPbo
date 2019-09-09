@@ -291,14 +291,17 @@ namespace DokanPbo
             }
             catch (AccessViolationException e)
             {
+                Console.WriteLine("DokanPBO::DeleteDirectory failed due to AccessViolationException: " + e);
                 return DokanResult.AccessDenied;
             }
             catch (IOException e)
             {
+                Console.WriteLine("DokanPBO::DeleteDirectory failed due to IOException: " + e);
                 return DokanResult.SharingViolation;
             }
             catch (Exception e)
             {
+                Console.WriteLine("DokanPBO::DeleteDirectory failed due to exception: " + e);
                 return DokanResult.NotImplemented;
             }
 
@@ -322,6 +325,7 @@ namespace DokanPbo
                 }
                 catch (DirectoryNotFoundException e)
                 {
+                    Console.WriteLine("DokanPBO::DeleteFile failed due to DirectoryNotFoundException: " + e);
                     //File is already gone. Just return success
                 }
 

@@ -31,14 +31,15 @@ namespace DokanPbo
                     }
                     catch (DirectoryNotFoundException e)
                     {
-                        return new List<string>();
+                        Console.WriteLine("DokanPBO::ArchiveManager errored due to DirectoryNotFoundException: " + e);
+                        return new string[0];
                     }
                 })
                 .SelectMany(x => x);
             ReadPboFiles(pboList);
         }
 
-        private void ReadPboFiles(string[] filePaths)
+        private void ReadPboFiles(IEnumerable<string> filePaths)
         {
             TotalBytes =
                 filePaths

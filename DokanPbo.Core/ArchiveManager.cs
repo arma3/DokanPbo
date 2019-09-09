@@ -1,5 +1,6 @@
 ﻿using SwiftPbo;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,13 +12,13 @@ namespace DokanPbo
     public class ArchiveManager
     {
 
-        public Dictionary<string, FileEntry> FilePathToFileEntry { get; internal set; }
+        public ConcurrentDictionary<string, FileEntry> FilePathToFileEntry { get; internal set; }
 
         public long TotalBytes { get; internal set; }
 
         public ArchiveManager(string[] folderPaths)
         {
-            FilePathToFileEntry = new Dictionary<string, FileEntry>();
+            FilePathToFileEntry = new ConcurrentDictionary<string, FileEntry>();
             TotalBytes = 0;
 
             foreach (var folderPath in folderPaths)
@@ -35,23 +36,29 @@ namespace DokanPbo
 
         private void ReadPboFiles(string[] filePaths)
         {
-            foreach(var filePath in filePaths)
-            {
-                var archive = new PboArchive(filePath);
-
-                foreach (var file in archive.Files)
-                {
-                    var prefix = "";
-                    if (!string.IsNullOrEmpty(archive.ProductEntry.Prefix))
+            TotalBytes =
+                filePaths
+                    //.AsParallel()
+                    .Sum(filePath =>
                     {
-                        prefix = "\\" + archive.ProductEntry.Prefix;
-                    }
+                        var archive = new PboArchive(filePath);
 
-                    var wholeFilePath = (prefix + "\\" + file.FileName).ToLower();
-                    FilePathToFileEntry[wholeFilePath] = file;
-                    TotalBytes += (long) file.DataSize;
-                }
-            }
+                        long fileSize = 0;
+                        var prefix = "";
+                        if (!string.IsNullOrEmpty(archive.ProductEntry.Prefix))
+                        {
+                            prefix = "\\" + archive.ProductEntry.Prefix;
+                        }
+
+                        foreach (var file in archive.Files)
+                        {
+                            var wholeFilePath = (prefix + "\\" + file.FileName).ToLower();
+                            FilePathToFileEntry[wholeFilePath] = file;
+                            fileSize += (long) file.DataSize;
+                        }
+
+                        return fileSize;
+                    });
         }
     }
 }

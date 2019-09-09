@@ -222,16 +222,6 @@ namespace DokanPbo
                                 folder.Children[FileNameDirectNoLeadingSlash.ToLower()] = rlFile;
                                 fileTree.AddNode(rlFile);
                                 info.Context = rlFile;
-
-                                //If it wants to immediately write to file, we have to open it here already.
-                                //if ((access & (FileAccess.WriteData | FileAccess.AppendData | FileAccess.Delete |
-                                //               FileAccess.GenericWrite)) != 0)
-                                //    rlFile.Open(true, System.IO.FileMode.Open); 
-                                ////same for reading
-                                //if ((access & (FileAccess.ReadData | FileAccess.GenericRead | FileAccess.Execute |
-                                //               FileAccess.GenericExecute)) != 0)
-                                //    rlFile.Open(false, System.IO.FileMode.Open);
-
                             }
 
                             return DokanResult.Success;

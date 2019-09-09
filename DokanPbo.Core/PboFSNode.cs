@@ -64,16 +64,6 @@ namespace DokanPbo
         private List<string> path;
 
         public static readonly char[] PathChars = {'\\'};
-
-        public PboFsLookupDummy(List<string> inputPath)
-        {
-            path = inputPath;
-
-            if (path.Count == 0) return;
-
-            path.Reverse();
-        }
-
         public PboFsLookupDummy(string inputPath)
         {
             path = inputPath

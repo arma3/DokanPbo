@@ -21,24 +21,28 @@ namespace DokanPbo
             FilePathToFileEntry = new ConcurrentDictionary<string, FileEntry>();
             TotalBytes = 0;
 
-            foreach (var folderPath in folderPaths)
-            {
-                try
+            var pboList = folderPaths
+                //.AsParallel()
+                .Select(folderPath =>
                 {
-                    ReadPboFiles(Directory.GetFiles(folderPath, "*.pbo"));
-                }
-                catch (DirectoryNotFoundException e)
-                {
-                    Console.WriteLine(e.Message);
-                }
-            }
+                    try
+                    {
+                        return Directory.GetFiles(folderPath, "*.pbo");
+                    }
+                    catch (DirectoryNotFoundException e)
+                    {
+                        return new List<string>();
+                    }
+                })
+                .SelectMany(x => x);
+            ReadPboFiles(pboList);
         }
 
         private void ReadPboFiles(string[] filePaths)
         {
             TotalBytes =
                 filePaths
-                    //.AsParallel()
+                    .AsParallel()
                     .Sum(filePath =>
                     {
                         var archive = new PboArchive(filePath);

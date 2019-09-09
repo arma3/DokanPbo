@@ -117,10 +117,11 @@ namespace DokanPbo
             this.fileTreeLookup.Add(this.root);
             var hasCfgConvert = PboFS.HasCfgConvert();
 
-            foreach (string filePath in this.archiveManager.FilePathToFileEntry.Keys)
+
+            foreach (var (filePath, file) in this.archiveManager.Enumerator)
             {
                 if (excludePrefix != null && filePath.StartsWith(excludePrefix)) continue;
-                FileEntry file = this.archiveManager.FilePathToFileEntry[filePath];
+                this.archiveManager.TotalBytes += (long)file.DataSize;
 
                 PboFsFolder currentFolder = root;
                 var currentPath = "\\";

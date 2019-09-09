@@ -12,17 +12,15 @@ namespace DokanPbo
     public class ArchiveManager
     {
 
-        public ConcurrentDictionary<string, FileEntry> FilePathToFileEntry { get; internal set; }
+        public IEnumerable<(string, FileEntry)> Enumerator { get; internal set; }
 
-        public long TotalBytes { get; internal set; }
+        public long TotalBytes { get; set; }
 
         public ArchiveManager(string[] folderPaths)
         {
-            FilePathToFileEntry = new ConcurrentDictionary<string, FileEntry>();
             TotalBytes = 0;
 
-            var pboList = folderPaths
-                //.AsParallel() //Parallelizing this prooved not worth it with a dozen folders, but with many more it might become useful
+            Enumerator = folderPaths
                 .Select(folderPath =>
                 {
                     try
@@ -35,35 +33,21 @@ namespace DokanPbo
                         return new string[0];
                     }
                 })
-                .SelectMany(x => x);
-            ReadPboFiles(pboList);
-        }
+                .SelectMany(x => x) //Get flat list of pbo file paths
+                .AsParallel()
+                .Select(filePath => //Parse the pbo headers
+                {
+                    var archive = new PboArchive(filePath);
 
-        private void ReadPboFiles(IEnumerable<string> filePaths)
-        {
-            TotalBytes =
-                filePaths
-                    .AsParallel()
-                    .Sum(filePath =>
+                    var prefix = "";
+                    if (!string.IsNullOrEmpty(archive.ProductEntry.Prefix))
                     {
-                        var archive = new PboArchive(filePath);
+                        prefix = "\\" + archive.ProductEntry.Prefix;
+                    }
 
-                        long fileSize = 0;
-                        var prefix = "";
-                        if (!string.IsNullOrEmpty(archive.ProductEntry.Prefix))
-                        {
-                            prefix = "\\" + archive.ProductEntry.Prefix;
-                        }
-
-                        foreach (var file in archive.Files)
-                        {
-                            var wholeFilePath = (prefix + "\\" + file.FileName).ToLower();
-                            FilePathToFileEntry[wholeFilePath] = file;
-                            fileSize += (long) file.DataSize;
-                        }
-
-                        return fileSize;
-                    });
+                    return archive.Files.Select(file => ((prefix + "\\" + file.FileName).ToLower(), file));
+                })
+                .SelectMany(x => x); //Turn the arrays of pbo files into a flat array
         }
     }
 }

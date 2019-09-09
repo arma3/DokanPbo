@@ -61,17 +61,16 @@ namespace DokanPbo
 
     public class PboFsLookupDummy : IPboFsNode
     {
-        private List<string> path;
+        private string[] path;
 
         public static readonly char[] PathChars = {'\\'};
         public PboFsLookupDummy(string inputPath)
         {
             path = inputPath
-                .Split(PathChars, StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.ToLower())
-                .ToList();
+                .ToLower()
+                .Split(PathChars, StringSplitOptions.RemoveEmptyEntries);
 
-            if (path.Count == 0) return;
+            if (path.Length == 0) return;
 
             path.Reverse();
         }
@@ -79,7 +78,7 @@ namespace DokanPbo
 
         public override int GetHashCode()
         {
-            if (path.Count == 0) return "".GetHashCode();
+            if (path.Length == 0) return "".GetHashCode();
 
             bool first = true;
             int hashCode = 0;

@@ -124,23 +124,33 @@ namespace DokanPbo
 
                 PboFsFolder currentFolder = root;
                 var currentPath = "\\";
-                var splitPath = filePath.Split('\\');
+                var splitPath = filePath.Split(PboFsLookupDummy.PathChars, StringSplitOptions.RemoveEmptyEntries);
 
-                // Create inputFolder for all sub paths
-                for (int i = 1; i < splitPath.Length - 1; i++)
+                // Make sure the files directory path exists
+                for (int i = 0; i < splitPath.Length - 1; i++)
                 {
                     var folderName = splitPath[i];
                     currentPath += folderName;
 
+                    //A part of the path might already exist, walking the tree directly via this shortcut saves alot of time
+                    currentFolder.Children.TryGetValue(folderName, out var subFolderNode);
+                    if (subFolderNode is PboFsFolder subFolder)
+                    {
+                        currentFolder = subFolder;
+                        currentPath += "\\";
+                        continue;
+                    }
+                    var lookup = new PboFsLookupDummy(currentPath);
+
                     PboFsFolder folder = null;
-                    if (!this.fileTreeLookup.Contains(new PboFsLookupDummy(currentPath)))
+                    if (!this.fileTreeLookup.Contains(lookup))
                     {
                         folder = new PboFsFolder(folderName, currentFolder);
                         this.fileTreeLookup.Add(folder);
                     }
                     else
                     {
-                        fileTreeLookup.TryGetValue(new PboFsLookupDummy(currentPath), out var node);
+                        fileTreeLookup.TryGetValue(lookup, out var node);
                         folder = node as PboFsFolder;
                     }
 

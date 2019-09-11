@@ -81,9 +81,9 @@ namespace DokanPbo
 
 
 #if DEBUG
-        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.StderrOutput | DokanOptions.FixedDrive;
+        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.DebugMode | DokanOptions.StderrOutput | DokanOptions.FixedDrive | DokanOptions.MountManager;
 #else
-        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.FixedDrive;
+        static readonly DokanOptions MOUNT_OPTIONS = DokanOptions.FixedDrive | DokanOptions.MountManager;
 #endif
 
         private static void Main(string[] args)

@@ -97,7 +97,7 @@ namespace DokanPbo
 
         private IPboFsNode GetNodeFast(string filename, DokanFileInfo info)
         {
-            if (info.Context is IPboFsNode node)
+            if (info?.Context is IPboFsNode node)
                 return node;
             return FindNode(filename);
         }
@@ -564,6 +564,8 @@ namespace DokanPbo
 
             if (node is PboFsRealFile file)
             {
+                //#TODO we can't do this while file is open. Optimally we just want to queue tasks to be executed once the file is closed.
+                if (file.IsOpenForWriting) return DokanResult.Success;
                 if (ctime != null)
                 {
                     System.IO.File.SetCreationTime(file.GetRealPath(), ctime.Value);

@@ -1,5 +1,6 @@
 ﻿using SwiftPbo;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,47 +12,42 @@ namespace DokanPbo
     public class ArchiveManager
     {
 
-        public Dictionary<string, FileEntry> FilePathToFileEntry { get; internal set; }
+        public IEnumerable<(string, FileEntry)> Enumerator { get; internal set; }
 
-        public long TotalBytes { get; internal set; }
+        public long TotalBytes { get; set; }
 
         public ArchiveManager(string[] folderPaths)
         {
-            FilePathToFileEntry = new Dictionary<string, FileEntry>();
             TotalBytes = 0;
 
-            foreach (var folderPath in folderPaths)
-            {
-                try
+            Enumerator = folderPaths
+                .Select(folderPath =>
                 {
-                    ReadPboFiles(Directory.GetFiles(folderPath, "*.pbo"));
-                }
-                catch (DirectoryNotFoundException e)
+                    try
+                    {
+                        return Directory.GetFiles(folderPath, "*.pbo");
+                    }
+                    catch (DirectoryNotFoundException e)
+                    {
+                        Console.WriteLine("DokanPBO::ArchiveManager errored due to DirectoryNotFoundException: " + e);
+                        return new string[0];
+                    }
+                })
+                .SelectMany(x => x) //Get flat list of pbo file paths
+                .AsParallel()
+                .Select(filePath => //Parse the pbo headers
                 {
-                    Console.WriteLine(e.Message);
-                }
-            }
-        }
+                    var archive = new PboArchive(filePath);
 
-        private void ReadPboFiles(string[] filePaths)
-        {
-            foreach(var filePath in filePaths)
-            {
-                var archive = new PboArchive(filePath);
-
-                foreach (var file in archive.Files)
-                {
                     var prefix = "";
                     if (!string.IsNullOrEmpty(archive.ProductEntry.Prefix))
                     {
                         prefix = "\\" + archive.ProductEntry.Prefix;
                     }
 
-                    var wholeFilePath = (prefix + "\\" + file.FileName).ToLower();
-                    FilePathToFileEntry[wholeFilePath] = file;
-                    TotalBytes += (long) file.DataSize;
-                }
-            }
+                    return archive.Files.Select(file => ((prefix + "\\" + file.FileName).ToLower(), file));
+                })
+                .SelectMany(x => x); //Turn the arrays of pbo files into a flat array
         }
     }
 }

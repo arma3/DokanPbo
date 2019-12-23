@@ -158,8 +158,23 @@ namespace DokanPbo
 
                 var fileName = splitPath[splitPath.Length - 1];
                 var fileNode = new PboFsFile(fileName, file, currentFolder);
+
+                if (hasCfgConvert && fileName.EndsWith("rvmat"))
+                {
+                    byte[] buffer = new byte[4];
+                    fileNode.ReadFile(buffer, out var length, 0);
+                    if (buffer[0] == 0 && buffer[1] == 'r' && buffer[2] == 'a' && buffer[3] == 'P')
+                    {
+                        var derapNode = new PboFsDebinarizedFile(fileName, file, currentFolder);
+                        currentFolder.Children[fileName] = derapNode;
+                        this.fileTreeLookup.Add(derapNode);
+                        continue;
+                    }
+                }
+
                 currentFolder.Children[fileName] = fileNode;
                 this.fileTreeLookup.Add(fileNode);
+
                 if (hasCfgConvert && fileName == "config.bin")
                 {
                     var derapNode = new PboFsDebinarizedFile("config.cpp", file, currentFolder);

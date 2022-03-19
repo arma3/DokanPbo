@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using FileAccess = System.IO.FileAccess;
 
@@ -60,17 +61,16 @@ namespace DokanPbo
 
     public class PboFsLookupDummy : IPboFsNode
     {
-        private List<string> path = new List<string>();
+        private string[] path;
 
-
+        public static readonly char[] PathChars = {'\\'};
         public PboFsLookupDummy(string inputPath)
         {
-            var splitPath = inputPath.Split('\\');
-            foreach (var it in splitPath)
-                path.Add(it.ToLower());
+            path = inputPath
+                .ToLower()
+                .Split(PathChars, StringSplitOptions.RemoveEmptyEntries);
 
-            path.RemoveAll((x) => x == "");
-            if (path.Count == 0) return;
+            if (path.Length == 0) return;
 
             path.Reverse();
         }
@@ -78,7 +78,7 @@ namespace DokanPbo
 
         public override int GetHashCode()
         {
-            if (path.Count == 0) return "".GetHashCode();
+            if (path.Length == 0) return "".GetHashCode();
 
             bool first = true;
             int hashCode = 0;

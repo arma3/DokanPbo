@@ -68,11 +68,10 @@ namespace DokanPbo
         {
             path = inputPath
                 .ToLower()
-                .Split(PathChars, StringSplitOptions.RemoveEmptyEntries);
+                .Split(PathChars, StringSplitOptions.RemoveEmptyEntries)
+                .Reverse().ToArray();
 
             if (path.Length == 0) return;
-
-            path.Reverse();
         }
 
 

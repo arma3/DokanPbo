@@ -67,12 +67,17 @@ namespace DokanPbo
         // sent to the handler routine.
         public enum CtrlTypes
         {
+            CTRL_CLOSE_EVENT = 2,
         }
 
         private static bool ConsoleCtrlCheck(CtrlTypes ctrlType)
         {
-            if (deleteTempDirOnClose != null)
-                Directory.Delete(deleteTempDirOnClose, true);
+            if (ctrlType == CtrlTypes.CTRL_CLOSE_EVENT)
+            {
+                if (deleteTempDirOnClose != null)
+                    Directory.Delete(deleteTempDirOnClose, true);
+                Dokan.Shutdown();
+            }
             return true;
         }
 
@@ -88,7 +93,7 @@ namespace DokanPbo
 
         private static void Main(string[] args)
         {
-           
+            SetConsoleCtrlHandler(ConsoleCtrlCheck, true);
 
             var unmountOptions = new UnmountOptions();
             if (CommandLine.Parser.Default.ParseArguments(args, unmountOptions))
@@ -130,7 +135,8 @@ namespace DokanPbo
 #else
                     ILogger logger = new NullLogger();
 #endif
-                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS,1, logger);
+                    Dokan.Init();
+                    pboFS.Mount(options.MountDirectory, Program.MOUNT_OPTIONS, true, logger);
                     Console.WriteLine("Success");
                 }
                 catch (DokanException ex)

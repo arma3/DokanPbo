@@ -95,14 +95,14 @@ namespace DokanPbo
             fileTree.DeleteNode(PrefixedFilename(filename));
         }
 
-        private IPboFsNode GetNodeFast(string filename, DokanFileInfo info)
+        private IPboFsNode GetNodeFast(string filename, IDokanFileInfo info)
         {
             if (info?.Context is IPboFsNode node)
                 return node;
             return FindNode(filename);
         }
 
-        public void Cleanup(string filename, DokanFileInfo info)
+        public void Cleanup(string filename, IDokanFileInfo info)
         {
             if (GetNodeFast(filename, info) is IPboFsFile file)
                 file.Close();
@@ -111,7 +111,7 @@ namespace DokanPbo
             //Might be important for file handles we open/close. One might close in the same time another on is reading. But closing at Cleanup should be safe
         }
 
-        public void CloseFile(string filename, DokanFileInfo info)
+        public void CloseFile(string filename, IDokanFileInfo info)
         {
             //If the file is immediately reopened after closing. CloseFile might not be called.
             //In that case it would be beneficial for performance to keep the handle open.
@@ -161,7 +161,7 @@ namespace DokanPbo
             return currentFolder;
         }
 
-        public NtStatus CreateFile(string filename, FileAccess access, System.IO.FileShare share, System.IO.FileMode mode, System.IO.FileOptions options, System.IO.FileAttributes attributes, DokanFileInfo info)
+        public NtStatus CreateFile(string filename, FileAccess access, System.IO.FileShare share, System.IO.FileMode mode, System.IO.FileOptions options, System.IO.FileAttributes attributes, IDokanFileInfo info)
         {
             var node = GetNodeFast(filename, info);
 
@@ -268,7 +268,7 @@ namespace DokanPbo
             return DokanResult.Success;
         }
 
-        public NtStatus DeleteDirectory(string filename, DokanFileInfo info)
+        public NtStatus DeleteDirectory(string filename, IDokanFileInfo info)
         {
             //This is called after Windows asked the user for confirmation.
             var gnf = GetNodeFast(filename, info);
@@ -312,7 +312,7 @@ namespace DokanPbo
             return DokanResult.Success;
         }
 
-        public NtStatus DeleteFile(string filename, DokanFileInfo info)
+        public NtStatus DeleteFile(string filename, IDokanFileInfo info)
         {
             //This is called after Windows asked the user for confirmation.
 
@@ -337,7 +337,7 @@ namespace DokanPbo
             return DokanResult.NotImplemented;
         }
 
-        public NtStatus FlushFileBuffers(string filename, DokanFileInfo info)
+        public NtStatus FlushFileBuffers(string filename, IDokanFileInfo info)
         {
             if (GetNodeFast(filename, info) is PboFsRealFile file)
             {
@@ -348,13 +348,13 @@ namespace DokanPbo
             return DokanResult.NotImplemented;
         }
 
-        public NtStatus FindFiles(string filename, out IList<FileInformation> files, DokanFileInfo info)
+        public NtStatus FindFiles(string filename, out IList<FileInformation> files, IDokanFileInfo info)
         {
             files = this.fileTree.FilesForPath(PrefixedFilename(filename));
             return files != null ? DokanResult.Success : DokanResult.FileNotFound;
         }
 
-        public NtStatus GetFileInformation(string filename, out FileInformation fileInfo, DokanFileInfo info)
+        public NtStatus GetFileInformation(string filename, out FileInformation fileInfo, IDokanFileInfo info)
         {
             var node = GetNodeFast(filename, info);
             if (node == null)
@@ -376,7 +376,7 @@ namespace DokanPbo
             return DokanResult.Success;
         }
 
-        public NtStatus MoveFile(string filename, string newname, bool replace, DokanFileInfo info)
+        public NtStatus MoveFile(string filename, string newname, bool replace, IDokanFileInfo info)
         {
             var sourceNode = GetNodeFast(filename, info);
 
@@ -488,7 +488,7 @@ namespace DokanPbo
             }
         }
 
-        public NtStatus ReadFile(string filename, byte[] buffer, out int readBytes, long offset, DokanFileInfo info)
+        public NtStatus ReadFile(string filename, byte[] buffer, out int readBytes, long offset, IDokanFileInfo info)
         {
             if (GetNodeFast(filename, info) is IPboFsFile file)
             {
@@ -503,7 +503,7 @@ namespace DokanPbo
             return DokanResult.Error;
         }
 
-        public NtStatus WriteFile(string filename, byte[] buffer, out int writtenBytes, long offset, DokanFileInfo info)
+        public NtStatus WriteFile(string filename, byte[] buffer, out int writtenBytes, long offset, IDokanFileInfo info)
         {
             if (GetNodeFast(filename, info) is PboFsRealFile file)
             {
@@ -518,7 +518,7 @@ namespace DokanPbo
             return DokanResult.AccessDenied;
         }
 
-        public NtStatus SetEndOfFile(string filename, long length, DokanFileInfo info)
+        public NtStatus SetEndOfFile(string filename, long length, IDokanFileInfo info)
         {
             if (GetNodeFast(filename, info) is PboFsRealFile file)
             {
@@ -532,12 +532,12 @@ namespace DokanPbo
             return DokanResult.Error;
         }
 
-        public NtStatus SetAllocationSize(string filename, long length, DokanFileInfo info)
+        public NtStatus SetAllocationSize(string filename, long length, IDokanFileInfo info)
         {
             return SetEndOfFile(filename, length, info);
         }
 
-        public NtStatus SetFileAttributes(string filename, System.IO.FileAttributes attr, DokanFileInfo info)
+        public NtStatus SetFileAttributes(string filename, System.IO.FileAttributes attr, IDokanFileInfo info)
         {
             var node = GetNodeFast(filename, info);
 
@@ -558,7 +558,7 @@ namespace DokanPbo
             return DokanResult.NotImplemented; //Error message "Invalid Function"
         }
 
-        public NtStatus SetFileTime(string filename, DateTime? ctime, DateTime? atime, DateTime? wtime, DokanFileInfo info)
+        public NtStatus SetFileTime(string filename, DateTime? ctime, DateTime? atime, DateTime? wtime, IDokanFileInfo info)
         {
             var node = GetNodeFast(filename, info);
 
@@ -613,19 +613,19 @@ namespace DokanPbo
             return DokanResult.AccessDenied;
         }
 
-        public NtStatus Mounted(DokanFileInfo info)
+        public NtStatus Mounted(string mountPoint, IDokanFileInfo info)
         {
-            Console.WriteLine("DokanPbo mounted!");
+            Console.WriteLine($"DokanPbo mounted! at {mountPoint}");
             return DokanResult.Success;
         }
 
-        public NtStatus Unmounted(DokanFileInfo info)
+        public NtStatus Unmounted(IDokanFileInfo info)
         {
             Console.WriteLine("DokanPbo unmounted?!?");
             return DokanResult.Success;
         }
 
-        public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalBytes, out long totalFreeBytes, DokanFileInfo info)
+        public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalBytes, out long totalFreeBytes, IDokanFileInfo info)
         {
             var drive = new DriveInfo(fileTree.writeableDirectory);
 
@@ -636,7 +636,7 @@ namespace DokanPbo
             return DokanResult.Success;
         }
 
-        public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features, out string fileSystemName, out uint maximumComponentLength, DokanFileInfo info)
+        public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features, out string fileSystemName, out uint maximumComponentLength, IDokanFileInfo info)
         {
             volumeLabel = "PboFS";
             features = FileSystemFeatures.None;
@@ -645,7 +645,7 @@ namespace DokanPbo
             return DokanResult.Success;
         }
 
-        public NtStatus GetFileSecurity(string filename, out FileSystemSecurity security, AccessControlSections sections, DokanFileInfo info)
+        public NtStatus GetFileSecurity(string filename, out FileSystemSecurity security, AccessControlSections sections, IDokanFileInfo info)
         {
             var node = GetNodeFast(filename, info);
             if (node is IPboFsRealObject realObject)
@@ -658,36 +658,36 @@ namespace DokanPbo
             return DokanResult.AccessDenied;
         }
 
-        public NtStatus SetFileSecurity(string fileName, FileSystemSecurity security, AccessControlSections sections, DokanFileInfo info)
+        public NtStatus SetFileSecurity(string fileName, FileSystemSecurity security, AccessControlSections sections, IDokanFileInfo info)
         {
             return DokanResult.Error;
         }
 
 
-        public NtStatus LockFile(string filename, long offset, long length, DokanFileInfo info)
+        public NtStatus LockFile(string filename, long offset, long length, IDokanFileInfo info)
         {
             return DokanResult.Success;
         }
 
-        public NtStatus UnlockFile(string filename, long offset, long length, DokanFileInfo info)
+        public NtStatus UnlockFile(string filename, long offset, long length, IDokanFileInfo info)
         {
             return DokanResult.Success;
         }
 
-        public NtStatus EnumerateNamedStreams(string fileName, IntPtr enumContext, out string streamName, out long streamSize, DokanFileInfo info)
+        public NtStatus EnumerateNamedStreams(string fileName, IntPtr enumContext, out string streamName, out long streamSize, IDokanFileInfo info)
         {
             streamName = string.Empty;
             streamSize = 0;
             return DokanResult.NotImplemented;
         }
 
-        public NtStatus FindStreams(string fileName, out IList<FileInformation> streams, DokanFileInfo info)
+        public NtStatus FindStreams(string fileName, out IList<FileInformation> streams, IDokanFileInfo info)
         {
             streams = null;
             return DokanResult.NotImplemented;
         }
 
-        public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files, DokanFileInfo info)
+        public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files, IDokanFileInfo info)
         {
             files = null;
             return DokanResult.NotImplemented;

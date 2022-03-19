@@ -687,8 +687,27 @@ namespace DokanPbo
             return DokanResult.NotImplemented;
         }
 
+        private static String WildCardToRegular(String value)
+        {
+            return "^" + System.Text.RegularExpressions.Regex.Escape(value).Replace("\\?", ".").Replace("\\*", ".*") + "$";
+        }
+
         public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files, IDokanFileInfo info)
         {
+            // FileSystemName.MatchesSimpleExpression with .NET 5
+            var regex = new System.Text.RegularExpressions.Regex(WildCardToRegular(searchPattern), System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            var node = GetNodeFast(fileName, info);
+
+            if (node is PboFsFolder folder)
+            {
+                if (searchPattern == "*") // dumb optimization
+                    files = folder.Children.Select(x => x.Value.FileInformation).ToList();
+                else
+                    files = folder.Children.Where(x => regex.IsMatch(x.Value.FileInformation.FileName)).Select(x => x.Value.FileInformation).ToList();
+                return DokanResult.Success;
+            }
+
             files = null;
             return DokanResult.NotImplemented;
         }

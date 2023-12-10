@@ -1,5 +1,0 @@
-language: csharp
-solution: DokanPbo.sln
-
-before_script:
-  - sn -k SwiftPbo/SwiftPbo/swiftpbokey.snk

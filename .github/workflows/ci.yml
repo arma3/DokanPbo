@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Upgrade SwiftPbo to .NET Framework 4.7.2
+        run: |
+          $files="SwiftPbo\SwiftPbo\SwiftPbo.csproj","SwiftPbo\SwiftPbo.Tests\SwiftPbo.Tests.csproj"
+          foreach ($file in $files) {
+            (Get-Content $file).replace('v4.5', 'v4.7.2') | Set-Content $file
+          }
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v1
+
+      - name: Restore Packages
+        run: nuget restore DokanPbo.sln
+
+      - name: Build
+        run: msbuild DokanPbo.sln -property:Configuration=Release
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: DokanPbo
+          path: DokanPbo\bin\Release\DokanPbo.exe
